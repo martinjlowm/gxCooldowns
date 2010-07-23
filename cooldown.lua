@@ -11,7 +11,7 @@ local gxMedia = gxMedia or {
 	edgeFile = [=[Interface\Tooltips\UI-Tooltip-Border]=]
 }
 
-local tinsert, tremove = table.insert, table.remove
+local tinsert, tremove, split = table.insert, table.remove, strsplit
 local GetSpellCooldown = GetSpellCooldown
 local GetSpellTexture = GetSpellTexture
 local GetItemCooldown = GetItemCooldown
@@ -22,10 +22,11 @@ addon:RegisterEvent("PLAYER_LOGIN")
 addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 addon:RegisterEvent("BAG_UPDATE_COOLDOWN")
 addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+addon:RegisterEvent("SPELL_UPDATE_USABLE")
 
 local loadFrame = function(self)
 	if (#(self.pool) > 0) then
-		return table.remove(self.pool, 1)
+		return tremove(self.pool, 1)
 	end
 	
 	local frame = CreateFrame("Frame", nil, self)
@@ -87,7 +88,7 @@ end
 local saveFrame = function(self, frame)
 	frame:Hide()
 	
-	table.insert(self.pool, frame)
+	tinsert(self.pool, frame)
 end
 
 local repositionFrames = function(self)
@@ -119,7 +120,7 @@ local repositionFrames = function(self)
 	end
 end
 
-local newCooldown = function(self, cooldownName, startTime, seconds, tex)
+local newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
 	if (self.active[cooldownName]) then
 		return
 	end
@@ -127,10 +128,12 @@ local newCooldown = function(self, cooldownName, startTime, seconds, tex)
 	local frame = loadFrame(self)
 	
 	local duration = startTime - GetTime() + seconds
+	frame.start = startTime
 	frame.duration = duration
 	frame.max = seconds
 	
 	frame.name = cooldownName
+	frame.type = type
 	
 	frame.Icon:SetTexture(tex)
 	frame.Cooldown:SetCooldown(startTime, seconds)
@@ -168,13 +171,34 @@ addon.PLAYER_LOGIN = function(self)
 	self:UnregisterEvent("PLAYER_LOGIN")
 	self.PLAYER_LOGIN = nil
 end
-
+local specialOccasions = {
+	[GetSpellInfo(14751)] = true, -- Inner Focus
+	[GetSpellInfo(14177)] = true, -- Cold Blood
+	[GetSpellInfo(16166)] = true, -- Elemental Mastery
+	[GetSpellInfo(17116)] = true, -- Nature's Swiftness
+	[GetSpellInfo(20216)] = true, -- Divine Favor
+	[GetSpellInfo(12043)] = true, -- Presence of Mind
+}
 addon.SPELL_UPDATE_COOLDOWN = function(self, event)
+	if (self.updateNext) then
+		local sStartTime, sDuration, sEnabled = GetSpellCooldown(self.updateNext)
+		if (sEnabled == 1 and sDuration > 1.5) then
+			self:newCooldown(self.updateNext, sStartTime, sDuration, GetSpellTexture(self.updateNext))
+			self.updateNext = nil
+		end
+	end
+	
 	if (not self.updateAbility) then
 		return
 	end
 	
-	local unit, ability = strsplit(",", self.updateAbility)
+	local unit, ability = split(",", self.updateAbility)
+	
+	if (specialOccasions[ability]) then
+		self.updateNext = ability
+		return
+	end
+	
 	local startTime, duration, enabled
 	if (unit == "player") then
 		startTime, duration, enabled = GetSpellCooldown(ability)
@@ -191,23 +215,19 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 	end
 	
 	if (enabled == 1 and duration > 1.5) then
-		self:newCooldown(ability, startTime, duration, GetSpellTexture(ability))
-	elseif (enabled == 1) then
-		self:dropCooldown(ability)
+		self:newCooldown(ability, startTime, duration, GetSpellTexture(ability), "SPELL")
 	end
 	
 	self.updateAbility = nil
 end
 
-addon.BAG_UPDATE_COOLDOWN = function(self)
+addon.BAG_UPDATE_COOLDOWN = function(self, event)
 	local startTime, duration, enabled, texture
 	for itemID in next, items do
 		startTime, duration, enabled = GetItemCooldown(itemID)
 		_, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemID)
 		if (enabled == 1 and duration > 1.5) then
-			self:newCooldown(itemID, startTime, duration, texture)
-		elseif (enabled == 1) then
-			self:dropCooldown(itemID)
+			self:newCooldown(itemID, startTime, duration, texture, "ITEM")
 		end
 	end
 end
@@ -218,6 +238,26 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, event, unit, spellName)
 	end
 	
 	self.updateAbility = unit..","..spellName
+end
+
+addon.SPELL_UPDATE_USABLE = function(self, event)
+	for name, frame in next, self.active do
+		local startTime, seconds
+		if (frame.type == "SPELL") then
+			startTime, seconds = GetSpellCooldown(name)
+		elseif (frame.type == "ITEM") then
+			startTime, seconds = GetItemCooldown(name)
+		end
+		
+		if (startTime and frame.start > startTime) then
+			local duration = startTime - GetTime() + seconds
+			frame.start = startTime
+			frame.duration = duration
+			frame.max = seconds
+			
+			frame.Cooldown:SetCooldown(startTime, seconds)
+		end
+	end
 end
 
 addon:SetScript("OnEvent", function(self, event, ...)
