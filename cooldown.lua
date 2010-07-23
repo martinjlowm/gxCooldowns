@@ -1,14 +1,4 @@
-local blacklist = { -- uncomment following line to ignore 'Astral Recall'
-	--["Astral Recall"] = true,
-}
-
-local items = {
-	[42126] = true, -- Medallion of the Horde
-	[33448] = true, -- Runic Mana Potion
-}
-local frameSize = 34
-local growHorizontal = true -- else vertical
-local point, relFrame, relPoint, xOffset, yOffset = "CENTER", UIParent, "CENTER", 0, -150
+local _, settings = ...
 
 local gxMedia = gxMedia or {
 	buttonOverlay = [=[Interface\Buttons\UI-ActionButton-Border]=],
@@ -99,7 +89,7 @@ local repositionFrames = function(self)
 	local numActive, prev = 0
 	for _, frame in next, self.active do
 		frame:ClearAllPoints()
-		if (growHorizontal) then
+		if (settings.growHorizontal) then
 			if (prev) then
 				frame:SetPoint("LEFT", prev, "RIGHT", 2, 0)
 			else
@@ -117,7 +107,7 @@ local repositionFrames = function(self)
 		prev = frame
 	end
 	
-	if (growHorizontal) then
+	if (settings.growHorizontal) then
 		self:SetWidth(numActive * (self.frameSize + 2) - 2)
 	else
 		self:SetHeight(numActive * (self.frameSize + 2) - 2)
@@ -161,14 +151,14 @@ local dropCooldown = function(self, cooldownName)
 end
 
 addon.PLAYER_LOGIN = function(self)
-	self.frameSize = frameSize
+	self.frameSize = settings.frameSize
 	self.active = {}
 	self.pool = {}
 	
 	self.newCooldown = newCooldown
 	self.dropCooldown = dropCooldown
 	
-	self:SetPoint(point, relFrame, relPoint, xOffset, yOffset)
+	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
 	self:SetHeight(1)
 	self:SetWidth(1)
 	
@@ -229,7 +219,7 @@ end
 
 addon.BAG_UPDATE_COOLDOWN = function(self, event)
 	local startTime, duration, enabled, texture
-	for itemID in next, items do
+	for itemID in next, settings.items do
 		startTime, duration, enabled = GetItemCooldown(itemID)
 		_, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemID)
 		if (enabled == 1 and duration > 1.5) then
@@ -239,7 +229,7 @@ addon.BAG_UPDATE_COOLDOWN = function(self, event)
 end
 
 addon.UNIT_SPELLCAST_SUCCEEDED = function(self, event, unit, spellName)
-	if ((unit ~= "player" and unit ~= "pet") or blacklist[spellName]) then
+	if ((unit ~= "player" and unit ~= "pet") or settings.blacklist[spellName]) then
 		return
 	end
 	

@@ -5,4 +5,5 @@
 ## Notes: Shows player, pet and item cooldowns as icons.
 ## OptionalDeps: gxMedia
 
+cooldownConfig.lua
 cooldown.lua
