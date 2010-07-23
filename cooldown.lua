@@ -161,7 +161,7 @@ addon.PLAYER_LOGIN = function(self)
 	self.newCooldown = newCooldown
 	self.dropCooldown = dropCooldown
 	
-	self:SetPoint(point, parent, rPoint, xOffset, yOffset)
+	self:SetPoint(point, relFrame, relPoint, xOffset, yOffset)
 	self:SetHeight(1)
 	self:SetWidth(1)
 	
