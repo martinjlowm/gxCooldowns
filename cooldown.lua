@@ -4,7 +4,7 @@ local items = {
 }
 local frameSize = 34
 local growHorizontal = true -- else vertical
-local point, parent, rPoint, xOffset, yOffset = "CENTER", UIParent, "CENTER", 0, -150
+local point, relFrame, relPoint, xOffset, yOffset = "CENTER", UIParent, "CENTER", 0, -150
 
 local gxMedia = gxMedia or {
 	buttonOverlay = [=[Interface\Buttons\UI-ActionButton-Border]=],
