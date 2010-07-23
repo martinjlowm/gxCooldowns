@@ -89,14 +89,7 @@ local saveFrame = function(self, frame)
 end
 
 local repositionFrames = function(self)
-	local numActive = 0
-	for _ in next, self.active do
-		numActive = numActive + 1
-	end
-	
-	self:SetWidth(numActive * (self.frameSize + 2) - 2)
-	
-	local prev
+	local numActive, prev = 0
 	for _, frame in next, self.active do
 		frame:ClearAllPoints()
 		if (prev) then
@@ -105,8 +98,11 @@ local repositionFrames = function(self)
 			frame:SetPoint("LEFT", self, "LEFT", 0, 0)
 		end
 		
+		numActive = numActive + 1
 		prev = frame
 	end
+	
+	self:SetWidth(numActive * (self.frameSize + 2) - 2)
 end
 
 local newCooldown = function(self, cooldownName, startTime, seconds, tex)
