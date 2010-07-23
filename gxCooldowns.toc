@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: gxCooldowns
+## Author: Guardix
+## Version: 1.0
+## Notes: Shows player, pet and item cooldowns as icons.
+## OptionalDeps: gxMedia
+
+cooldown.lua
