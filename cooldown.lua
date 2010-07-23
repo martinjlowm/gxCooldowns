@@ -65,7 +65,7 @@ local loadFrame = function(self)
 	overlay:SetPoint("BOTTOMRIGHT", frame, 2, -2)
 	overlay:SetVertexColor(.6,.6,.6)
 	overlay:SetTexCoord(0, 1, 0.02, 1)
-
+	
 	frame:SetScript("OnUpdate", function(self, elapsed)
 		local duration = self.duration - elapsed
 		if (duration <= 0) then
@@ -171,6 +171,7 @@ addon.PLAYER_LOGIN = function(self)
 	self:UnregisterEvent("PLAYER_LOGIN")
 	self.PLAYER_LOGIN = nil
 end
+
 local specialOccasions = {
 	[GetSpellInfo(14751)] = true, -- Inner Focus
 	[GetSpellInfo(14177)] = true, -- Cold Blood
