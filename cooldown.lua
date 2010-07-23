@@ -245,7 +245,7 @@ addon.SPELL_UPDATE_USABLE = function(self, event)
 			start, dur = GetItemCooldown(name)
 		end
 		
-		if (dur <= 1) then
+		if (dur <= 1 and frame.type == "SPELL") then
 			self:dropCooldown(name)
 		end
 		
