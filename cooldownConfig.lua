@@ -10,6 +10,7 @@ settings.items = {
 }
 
 settings.frameSize = 34
+settings.gap = 6
 settings.growHorizontal = true
 
 settings.point = "CENTER"

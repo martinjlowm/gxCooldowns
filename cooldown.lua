@@ -86,18 +86,20 @@ local saveFrame = function(self, frame)
 end
 
 local repositionFrames = function(self)
+	local gap = settings.gap
+	
 	local numActive, prev = 0
 	for _, frame in next, self.active do
 		frame:ClearAllPoints()
 		if (settings.growHorizontal) then
 			if (prev) then
-				frame:SetPoint("LEFT", prev, "RIGHT", 2, 0)
+				frame:SetPoint("LEFT", prev, "RIGHT", gap, 0)
 			else
 				frame:SetPoint("LEFT", self, "LEFT", 0, 0)
 			end
 		else
 			if (prev) then
-				frame:SetPoint("BOTTOM", prev, "TOP", 0, 2)
+				frame:SetPoint("BOTTOM", prev, "TOP", 0, gap)
 			else
 				frame:SetPoint("BOTTOM", self, "BOTTOM", 0, 0)
 			end
@@ -108,9 +110,9 @@ local repositionFrames = function(self)
 	end
 	
 	if (settings.growHorizontal) then
-		self:SetWidth(numActive * (self.frameSize + 2) - 2)
+		self:SetWidth(numActive * (self.frameSize + gap) - gap)
 	else
-		self:SetHeight(numActive * (self.frameSize + 2) - 2)
+		self:SetHeight(numActive * (self.frameSize + gap) - gap)
 	end
 end
 
