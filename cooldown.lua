@@ -1,3 +1,7 @@
+local blacklist = { -- uncomment following line to ignore 'Astral Recall'
+	--["Astral Recall"] = true,
+}
+
 local items = {
 	[42126] = true, -- Medallion of the Horde
 	[33448] = true, -- Runic Mana Potion
@@ -235,7 +239,7 @@ addon.BAG_UPDATE_COOLDOWN = function(self, event)
 end
 
 addon.UNIT_SPELLCAST_SUCCEEDED = function(self, event, unit, spellName)
-	if (unit ~= "player" and unit ~= "pet") then
+	if ((unit ~= "player" and unit ~= "pet") or blacklist[spellName]) then
 		return
 	end
 	
