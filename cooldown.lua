@@ -3,6 +3,8 @@ local items = {
 	[33448] = true, -- Runic Mana Potion
 }
 local frameSize = 34
+local growHorizontal = true -- else vertical
+local point, parent, rPoint, xOffset, yOffset = "CENTER", UIParent, "CENTER", 0, -150
 
 local gxMedia = gxMedia or {
 	buttonOverlay = [=[Interface\Buttons\UI-ActionButton-Border]=],
@@ -92,17 +94,29 @@ local repositionFrames = function(self)
 	local numActive, prev = 0
 	for _, frame in next, self.active do
 		frame:ClearAllPoints()
-		if (prev) then
-			frame:SetPoint("LEFT", prev, "RIGHT", 2, 0)
+		if (growHorizontal) then
+			if (prev) then
+				frame:SetPoint("LEFT", prev, "RIGHT", 2, 0)
+			else
+				frame:SetPoint("LEFT", self, "LEFT", 0, 0)
+			end
 		else
-			frame:SetPoint("LEFT", self, "LEFT", 0, 0)
+			if (prev) then
+				frame:SetPoint("BOTTOM", prev, "TOP", 0, 2)
+			else
+				frame:SetPoint("BOTTOM", self, "BOTTOM", 0, 0)
+			end
 		end
 		
 		numActive = numActive + 1
 		prev = frame
 	end
 	
-	self:SetWidth(numActive * (self.frameSize + 2) - 2)
+	if (growHorizontal) then
+		self:SetWidth(numActive * (self.frameSize + 2) - 2)
+	else
+		self:SetHeight(numActive * (self.frameSize + 2) - 2)
+	end
 end
 
 local newCooldown = function(self, cooldownName, startTime, seconds, tex)
@@ -147,7 +161,7 @@ addon.PLAYER_LOGIN = function(self)
 	self.newCooldown = newCooldown
 	self.dropCooldown = dropCooldown
 	
-	self:SetPoint("CENTER", UIParent, "CENTER", 0, -150)
+	self:SetPoint(point, parent, rPoint, xOffset, yOffset)
 	self:SetHeight(1)
 	self:SetWidth(1)
 	
