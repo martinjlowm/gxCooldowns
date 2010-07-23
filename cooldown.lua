@@ -178,12 +178,13 @@ local specialOccasions = {
 	[GetSpellInfo(17116)] = true, -- Nature's Swiftness
 	[GetSpellInfo(20216)] = true, -- Divine Favor
 	[GetSpellInfo(12043)] = true, -- Presence of Mind
+	[GetSpellInfo(5384)] = true, -- Feign Death
 }
 addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 	if (self.updateNext) then
 		local sStartTime, sDuration, sEnabled = GetSpellCooldown(self.updateNext)
 		if (sEnabled == 1 and sDuration > 1.5) then
-			self:newCooldown(self.updateNext, sStartTime, sDuration, GetSpellTexture(self.updateNext))
+			self:newCooldown(self.updateNext, sStartTime, sDuration, GetSpellTexture(self.updateNext), "SPELL")
 			self.updateNext = nil
 		end
 	end
@@ -242,20 +243,24 @@ end
 
 addon.SPELL_UPDATE_USABLE = function(self, event)
 	for name, frame in next, self.active do
-		local startTime, seconds
+		local startTime, dur
 		if (frame.type == "SPELL") then
-			startTime, seconds = GetSpellCooldown(name)
+			start, dur = GetSpellCooldown(name)
 		elseif (frame.type == "ITEM") then
-			startTime, seconds = GetItemCooldown(name)
+			start, dur = GetItemCooldown(name)
 		end
 		
-		if (startTime and frame.start > startTime) then
-			local duration = startTime - GetTime() + seconds
-			frame.start = startTime
+		if (dur <= 1) then
+			self:dropCooldown(name)
+		end
+		
+		if (frame.start > start) then
+			local duration = start - GetTime() + dur
+			frame.start = start
 			frame.duration = duration
-			frame.max = seconds
+			frame.max = dur
 			
-			frame.Cooldown:SetCooldown(startTime, seconds)
+			frame.Cooldown:SetCooldown(start, dur)
 		end
 	end
 end
