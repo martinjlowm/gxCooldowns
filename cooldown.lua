@@ -5,7 +5,7 @@ local gxMedia = gxMedia or {
 	edgeFile = [=[Interface\Tooltips\UI-Tooltip-Border]=]
 }
 
-local tinsert, tremove, split = table.insert, table.remove, strsplit
+local tinsert, tremove, split, select = table.insert, table.remove, strsplit, select
 local GetSpellCooldown = GetSpellCooldown
 local GetSpellTexture = GetSpellTexture
 local GetItemCooldown = GetItemCooldown
@@ -219,13 +219,29 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 	self.updateAbility = nil
 end
 
+local enchants = {
+	[3606] = true, -- Nitro Boosts
+}
 addon.BAG_UPDATE_COOLDOWN = function(self, event)
 	local startTime, duration, enabled, texture
 	for itemID in next, settings.items do
 		startTime, duration, enabled = GetItemCooldown(itemID)
-		_, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemID)
+		texture = select(10, GetItemInfo(itemID))
 		if (enabled == 1 and duration > 1.5) then
 			self:newCooldown(itemID, startTime, duration, texture, "ITEM")
+		end
+	end
+	local itemLink, enchantID
+	for id = 1, 19 do
+		itemLink = GetInventoryItemLink("player", id)
+		enchantID = select(4, string.find(itemLink, "Hitem:(%d+):(%d+)"))
+		
+		if (enchants[enchantID]) then
+			startTime, duration, enabled = GetItemCooldown(itemLink)
+			texture = select(10, GetItemInfo(itemLink))
+			if (enabled == 1 and duration > 1.5) then
+				self:newCooldown(id, startTime, duration, texture, "ITEM")
+			end
 		end
 	end
 end
