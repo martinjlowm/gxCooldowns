@@ -220,6 +220,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 end
 
 local enchants = {
+	[3604] = true, -- Hyperspeed Accelerators
 	[3606] = true, -- Nitro Boosts
 }
 addon.BAG_UPDATE_COOLDOWN = function(self, event)
