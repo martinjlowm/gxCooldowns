@@ -5,7 +5,11 @@ local gxMedia = gxMedia or {
 	edgeFile = [=[Interface\Tooltips\UI-Tooltip-Border]=]
 }
 
-local tinsert, tremove, split, select = table.insert, table.remove, strsplit, select
+local tinsert = table.insert
+local tremove = table.remove
+local split = strsplit
+local find = string.find
+local select = select
 local GetSpellCooldown = GetSpellCooldown
 local GetSpellTexture = GetSpellTexture
 local GetItemCooldown = GetItemCooldown
@@ -197,14 +201,18 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 		return
 	end
 	
-	local startTime, duration, enabled
+	local startTime, duration, enabled, texture, type
 	if (unit == "player") then
+		type = "SPELL"
+		texture = GetSpellTexture(ability)
 		startTime, duration, enabled = GetSpellCooldown(ability)
 	else
 		local abilityName
 		for i = 4, (NUM_PET_ACTION_SLOTS - 3) do
 			abilityName = GetPetActionInfo(i)
 			if (ability == abilityName) then
+				type = "PET"
+				texture = select(3, GetPetActionInfo(i))
 				startTime, duration, enabled = GetPetActionCooldown(i)
 				
 				break
@@ -213,15 +221,17 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 	end
 	
 	if (enabled == 1 and duration > 1.5) then
-		self:newCooldown(ability, startTime, duration, GetSpellTexture(ability), "SPELL")
+		self:newCooldown(ability, startTime, duration, texture, type)
 	end
 	
 	self.updateAbility = nil
 end
 
 local enchants = {
-	[3604] = true, -- Hyperspeed Accelerators
-	[3606] = true, -- Nitro Boosts
+	[6] = "3601", -- Belt: Frag Belt
+	[8] = "3606", -- Boots: Nitro Boosts
+	[10] = "3604,3603", -- Gloves: Hyperspeed Accelerators, Hand-Mounted Pyro Rocket
+	[15] = "3859", -- Cloak: Springy Arachnoweave
 }
 addon.BAG_UPDATE_COOLDOWN = function(self, event)
 	local startTime, duration, enabled, texture
@@ -233,15 +243,14 @@ addon.BAG_UPDATE_COOLDOWN = function(self, event)
 		end
 	end
 	local itemLink, enchantID
-	for id = 1, 19 do
-		itemLink = GetInventoryItemLink("player", id)
-		enchantID = select(4, string.find(itemLink, "Hitem:(%d+):(%d+)"))
-		
-		if (enchants[enchantID]) then
+	for slotID, enchantList in next, enchants do
+		itemLink = GetInventoryItemLink("player", slotID)
+		enchantID = select(4, find(itemLink, "Hitem:(%d+):(%d+)"))
+		if (find(enchantList, enchantID)) then
 			startTime, duration, enabled = GetItemCooldown(itemLink)
 			texture = select(10, GetItemInfo(itemLink))
 			if (enabled == 1 and duration > 1.5) then
-				self:newCooldown(id, startTime, duration, texture, "ITEM")
+				self:newCooldown(slotID, startTime, duration, texture, "ITEM")
 			end
 		end
 	end
@@ -262,6 +271,8 @@ addon.SPELL_UPDATE_USABLE = function(self, event)
 			start, dur = GetSpellCooldown(name)
 		elseif (frame.type == "ITEM") then
 			start, dur = GetItemCooldown(name)
+		else
+			return -- pet shouldn't be necessary to update
 		end
 		
 		if (dur <= 1 and frame.type == "SPELL") then
