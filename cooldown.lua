@@ -208,7 +208,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 		startTime, duration, enabled = GetSpellCooldown(ability)
 	else
 		local abilityName
-		for i = 4, (NUM_PET_ACTION_SLOTS - 3) do
+		for i = 1, NUM_PET_ACTION_SLOTS do
 			abilityName = GetPetActionInfo(i)
 			if (ability == abilityName) then
 				type = "PET"
