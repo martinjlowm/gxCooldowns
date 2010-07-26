@@ -9,6 +9,7 @@ local tinsert = table.insert
 local tremove = table.remove
 local split = strsplit
 local find = string.find
+local match = string.match
 local select = select
 local GetSpellCooldown = GetSpellCooldown
 local GetSpellTexture = GetSpellTexture
@@ -194,23 +195,24 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 		return
 	end
 	
-	local unit, ability = split(",", self.updateAbility)
+	local unit, abilityName = split(",", self.updateAbility)
 	
-	if (specialOccasions[ability]) then
-		self.updateNext = ability
+	if (specialOccasions[abilityName]) then
+		self.updateNext = abilityName
 		return
 	end
 	
 	local startTime, duration, enabled, texture, type
 	if (unit == "player") then
 		type = "SPELL"
-		texture = GetSpellTexture(ability)
-		startTime, duration, enabled = GetSpellCooldown(ability)
+		texture = GetSpellTexture(abilityName)
+		startTime, duration, enabled = GetSpellCooldown(abilityName)
 	else
-		local abilityName
+		local petAction
 		for i = 1, NUM_PET_ACTION_SLOTS do
-			abilityName = GetPetActionInfo(i)
-			if (ability == abilityName) then
+			petAction = GetPetActionInfo(i)
+			if (abilityName == petAction) then
+				abilityName = i
 				type = "PET"
 				texture = select(3, GetPetActionInfo(i))
 				startTime, duration, enabled = GetPetActionCooldown(i)
@@ -221,7 +223,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self, event)
 	end
 	
 	if (enabled == 1 and duration > 1.5) then
-		self:newCooldown(ability, startTime, duration, texture, type)
+		self:newCooldown(abilityName, startTime, duration, texture, type)
 	end
 	
 	self.updateAbility = nil
@@ -242,15 +244,17 @@ addon.BAG_UPDATE_COOLDOWN = function(self, event)
 			self:newCooldown(itemID, startTime, duration, texture, "ITEM")
 		end
 	end
-	local itemLink, enchantID
+	local itemLink, enchantID, itemID
 	for slotID, enchantList in next, enchants do
-		itemLink = GetInventoryItemLink("player", slotID)
-		enchantID = select(4, find(itemLink, "Hitem:(%d+):(%d+)"))
-		if (find(enchantList, enchantID)) then
-			startTime, duration, enabled = GetItemCooldown(itemLink)
-			texture = select(10, GetItemInfo(itemLink))
-			if (enabled == 1 and duration > 1.5) then
-				self:newCooldown(slotID, startTime, duration, texture, "ITEM")
+		startTime, duration, enabled = GetInventoryItemCooldown("player", slotID)
+		if (enabled == 1 and duration > 1.5) then
+			itemLink = GetInventoryItemLink("player", slotID)
+			if (itemLink) then
+				itemID, enchantID = match(itemLink, "Hitem:(%d+):(%d+)")
+				if (find(enchantList, enchantID)) then
+					texture = select(10, GetItemInfo(itemID))
+					self:newCooldown(itemID, startTime, duration, texture, "ITEM")
+				end
 			end
 		end
 	end
@@ -271,12 +275,18 @@ addon.SPELL_UPDATE_USABLE = function(self, event)
 			start, dur = GetSpellCooldown(name)
 		elseif (frame.type == "ITEM") then
 			start, dur = GetItemCooldown(name)
-		else
-			return -- pet shouldn't be necessary to update
+		elseif (frame.type == "PET") then
+			start, dur = GetPetActionCooldown(name)
 		end
 		
-		if (dur <= 1 and frame.type == "SPELL") then
+		if (not start and not dur) then -- Calling Get'Something'Cooldown right after talent swap returns nil values
 			self:dropCooldown(name)
+			return
+		end
+		
+		if (dur <= 1 and frame.type == "SPELL") then -- For abilities like Readiness, dur will be lowered to 1 or 0
+			self:dropCooldown(name)
+			return
 		end
 		
 		if (frame.start > start) then
