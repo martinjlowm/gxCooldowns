@@ -174,15 +174,15 @@ addon.PLAYER_LOGIN = function(self)
 end
 
 local specialOccasions = {
-	[GetSpellInfo(14751)] = true, -- Inner Focus
-	[GetSpellInfo(14177)] = true, -- Cold Blood
-	[GetSpellInfo(16166)] = true, -- Elemental Mastery
-	[GetSpellInfo(17116)] = true, -- Nature's Swiftness
-	[GetSpellInfo(20216)] = true, -- Divine Favor
-	[GetSpellInfo(12043)] = true, -- Presence of Mind
-	[GetSpellInfo(5384)] = true, -- Feign Death
+	[GetSpellInfo(14177)] = true,	-- Cold Blood
+	[GetSpellInfo(20216)] = true,	-- Divine Favor
+	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
+	[GetSpellInfo(5384)] = true,	-- Feign Death
+	[GetSpellInfo(14751)] = true,	-- Inner Focus
+	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
+	[GetSpellInfo(12043)] = true	-- Presence of Mind
 }
-addon.SPELL_UPDATE_COOLDOWN = function(self, event)
+addon.SPELL_UPDATE_COOLDOWN = function(self)
 	if (self.updateNext) then
 		local sStartTime, sDuration, sEnabled = GetSpellCooldown(self.updateNext)
 		if (sEnabled == 1 and sDuration > 1.5) then
@@ -235,7 +235,7 @@ local enchants = {
 	[10] = "3604,3603", -- Gloves: Hyperspeed Accelerators, Hand-Mounted Pyro Rocket
 	[15] = "3859", -- Cloak: Springy Arachnoweave
 }
-addon.BAG_UPDATE_COOLDOWN = function(self, event)
+addon.BAG_UPDATE_COOLDOWN = function(self)
 	local startTime, duration, enabled, texture
 	for itemID in next, settings.items do
 		startTime, duration, enabled = GetItemCooldown(itemID)
@@ -260,7 +260,7 @@ addon.BAG_UPDATE_COOLDOWN = function(self, event)
 	end
 end
 
-addon.UNIT_SPELLCAST_SUCCEEDED = function(self, event, unit, spellName)
+addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 	if ((unit ~= "player" and unit ~= "pet") or settings.blacklist[spellName]) then
 		return
 	end
@@ -268,7 +268,7 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, event, unit, spellName)
 	self.updateAbility = unit..","..spellName
 end
 
-addon.SPELL_UPDATE_USABLE = function(self, event)
+addon.SPELL_UPDATE_USABLE = function(self)
 	for name, frame in next, self.active do
 		local startTime, dur
 		if (frame.type == "SPELL") then
@@ -301,5 +301,7 @@ addon.SPELL_UPDATE_USABLE = function(self, event)
 end
 
 addon:SetScript("OnEvent", function(self, event, ...)
-	self[event](self, event, ...)
+	if (self[event]) then
+		self[event](self, ...)
+	end
 end)
