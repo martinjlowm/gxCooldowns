@@ -177,8 +177,7 @@ addon.PLAYER_LOGIN = function(self)
 	self.pool = {}
 	
 	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
-	self:SetHeight(1)
-	self:SetWidth(1)
+	self:SetHeight(1) -- We need to set some dimension to the frame to make it show.
 	
 	self:scanCooldowns()		-- Scan when we reload the UI or log in w/e
 	self.scanCooldowns = nil	-- nil the function afterwards as we don't need it anymore.
