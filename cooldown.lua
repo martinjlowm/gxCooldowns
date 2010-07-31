@@ -121,7 +121,7 @@ local repositionFrames = function(self)
 	end
 end
 
-local newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
+addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
 	if (self.active[cooldownName]) then
 		return
 	end
@@ -145,7 +145,7 @@ local newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
 	repositionFrames(self)
 end
 
-local dropCooldown = function(self, cooldownName)
+addon.dropCooldown = function(self, cooldownName)
 	if (self.active[cooldownName]) then
 		saveFrame(self, self.active[cooldownName])
 		self.active[cooldownName] = nil
@@ -157,17 +157,31 @@ local dropCooldown = function(self, cooldownName)
 	return
 end
 
+addon.scanCooldowns = function(self)
+	local _, _, offset, numSpellsInTab = GetSpellTabInfo(GetNumSpellTabs())
+	local numSpells = offset + numSpellsInTab
+	
+	local spellName, duration, enabled
+	for spellNum = 1, numSpells do
+		spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
+		startTime, duration, enabled = GetSpellCooldown(spellName)
+		if (enabled == 1 and duration > 1.5) then
+			self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL")
+		end
+	end
+end
+
 addon.PLAYER_LOGIN = function(self)
 	self.frameSize = settings.frameSize
 	self.active = {}
 	self.pool = {}
 	
-	self.newCooldown = newCooldown
-	self.dropCooldown = dropCooldown
-	
 	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
 	self:SetHeight(1)
 	self:SetWidth(1)
+	
+	self:scanCooldowns()		-- Scan when we reload the UI or log in w/e
+	self.scanCooldowns = nil	-- nil the function afterwards as we don't need it anymore.
 	
 	self:UnregisterEvent("PLAYER_LOGIN")
 	self.PLAYER_LOGIN = nil
