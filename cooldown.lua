@@ -157,7 +157,15 @@ addon.dropCooldown = function(self, cooldownName)
 	return
 end
 
-addon.scanCooldowns = function(self)
+addon.PLAYER_LOGIN = function(self)
+	self.frameSize = settings.frameSize
+	self.active = {}
+	self.pool = {}
+	
+	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
+	self:SetHeight(1) -- We need to set some dimension to the frame to make it show.
+	
+	-- Scan when we reload the UI or log in w/e
 	local _, _, offset, numSpellsInTab = GetSpellTabInfo(GetNumSpellTabs())
 	local numSpells = offset + numSpellsInTab
 	
@@ -169,18 +177,6 @@ addon.scanCooldowns = function(self)
 			self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL")
 		end
 	end
-end
-
-addon.PLAYER_LOGIN = function(self)
-	self.frameSize = settings.frameSize
-	self.active = {}
-	self.pool = {}
-	
-	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
-	self:SetHeight(1) -- We need to set some dimension to the frame to make it show.
-	
-	self:scanCooldowns()		-- Scan when we reload the UI or log in w/e
-	self.scanCooldowns = nil	-- nil the function afterwards as we don't need it anymore.
 	
 	self:UnregisterEvent("PLAYER_LOGIN")
 	self.PLAYER_LOGIN = nil
