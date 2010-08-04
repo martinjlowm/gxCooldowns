@@ -9,6 +9,8 @@ local tinsert = table.insert
 local tremove = table.remove
 local split = strsplit
 local find = string.find
+local format = string.format
+local lower = string.lower
 local match = string.match
 local select = select
 local GetSpellCooldown = GetSpellCooldown
@@ -16,12 +18,86 @@ local GetSpellTexture = GetSpellTexture
 local GetItemCooldown = GetItemCooldown
 local GetPetActionCooldown = GetPetActionCooldown
 
+local L = {}
+L["%s school is locked!"] = "%s school is locked!"
+L["Physical"] = "Physical"
+L["Holy"] = "Holy"
+L["Fire"] = "Fire"
+L["Nature"] = "Nature"
+L["Frost"] = "Frost"
+L["Shadow"] = "Shadow"
+L["Arcane"] = "Arcane"
+if (GetLocale() == "deDE") then
+	L["%s school is locked!"] = "%s school is locked!"
+	L["Physical"] = "Physical"
+	L["Holy"] = "Holy"
+	L["Fire"] = "Feuer"
+	L["Nature"] = "Nature"
+	L["Frost"] = "Frost"
+	L["Shadow"] = "Shadow"
+	L["Arcane"] = "Arcane"
+elseif (GetLocale() == "frFR") then
+	L["%s school is locked!"] = "%s school is locked!"
+	L["Physical"] = "Physical"
+	L["Holy"] = "Holy"
+	L["Fire"] = "Feu"
+	L["Nature"] = "Nature"
+	L["Frost"] = "Frost"
+	L["Shadow"] = "Shadow"
+	L["Arcane"] = "Arcane"
+end
+
 local addon = CreateFrame("Frame", nil, UIParent)
 addon:RegisterEvent("PLAYER_LOGIN")
 addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 addon:RegisterEvent("BAG_UPDATE_COOLDOWN")
 addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+addon:RegisterEvent("UNIT_SPELLCAST_FAILED_QUIET")
 addon:RegisterEvent("SPELL_UPDATE_USABLE")
+addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+
+local createOutput = function(self)
+	local output = self:CreateFontString(nil, "OVERLAY")
+	output:SetFont(gxMedia.font, 30, "OUTLINE")
+	output:SetPoint("BOTTOM", self, "TOP")
+	self.output = output
+	
+	return output
+end
+
+addon.print = function(self, ...)
+	local method = lower(settings.outputMethod)
+	
+	if (method == "uierrorsframe") then
+		UIErrorsFrame:AddMessage(...)
+	elseif (method == "sct" and IsAddOnLoaded("sct") and SCT) then
+		SCT:DisplayMessage(..., {r = 1, g = 1, b = 1})
+	elseif (method == "msbt" and IsAddOnLoaded("MikScrollingBattleText") and MikSBT) then
+		MikSBT.DisplayMessage(...)
+	elseif (method == "standard") then
+		local output = self.output or createOutput(self)
+		output:SetText(...)
+		output:SetAlpha(1)
+		self.duration = settings.outputTime
+		self:SetScript("OnUpdate", function(self, elapsed)
+			local duration = self.duration - elapsed
+			if (duration <= 0) then
+				self.output:SetText()
+				self.output:SetPoint("CENTER")
+				self:SetScript("OnUpdate", nil)
+			elseif (duration >= 0) then
+				local alpha = duration / settings.outputTime
+				self.output:SetAlpha(alpha)
+				self.output:ClearAllPoints()
+				self.output:SetPoint("BOTTOM", self, "TOP", 0, -25 * duration + 100)
+			end
+			
+			self.duration = duration
+		end)
+	else
+		print("|cffffaa00gx|r|cff999999Cooldowns:|r", ...)
+	end
+end
 
 local loadFrame = function(self)
 	if (#(self.pool) > 0) then
@@ -31,6 +107,7 @@ local loadFrame = function(self)
 	local frame = CreateFrame("Frame", nil, self)
 	frame:SetWidth(self.frameSize)
 	frame:SetHeight(self.frameSize)
+	frame:SetFrameLevel(self:GetFrameLevel() - 1)
 	frame:Hide()
 	
 	local backdrop = CreateFrame("Frame", nil, frame)
@@ -158,6 +235,8 @@ addon.dropCooldown = function(self, cooldownName)
 end
 
 addon.PLAYER_LOGIN = function(self)
+	self.playerGUID = UnitGUID("player")
+	
 	self.frameSize = settings.frameSize
 	self.active = {}
 	self.pool = {}
@@ -182,6 +261,36 @@ addon.PLAYER_LOGIN = function(self)
 	self.PLAYER_LOGIN = nil
 end
 
+local spellSchools = { -- We assume players can't use combined schools
+	[1] = {
+		Name = L["Physical"],
+		colorString = "|cffFFFF00",
+	},
+	[2] = {
+		Name = L["Holy"],
+		colorString = "|cffFFE680"
+	},
+	[4] = {
+		Name = L["Fire"],
+		colorString = "|cffFF8000"
+	},
+	[8] = {
+		Name = L["Nature"],
+		colorString = "|cff4DFF4D"
+	},
+	[16] = {
+		Name = L["Frost"],
+		colorString = "|cff80FFFF"
+	},
+	[32] = {
+		Name = L["Shadow"],
+		colorString = "|cff8080FF"
+	},
+	[64] = {
+		Name = L["Arcane"],
+		colorString = "|cffFF80FF"
+	}
+}
 local specialOccasions = {
 	[GetSpellInfo(14177)] = true,	-- Cold Blood
 	[GetSpellInfo(20216)] = true,	-- Divine Favor
@@ -204,7 +313,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		return
 	end
 	
-	local unit, abilityName = split(",", self.updateAbility)
+	local unit, abilityName, interrupted = split(",", self.updateAbility)
 	
 	if (specialOccasions[abilityName]) then
 		self.updateNext = abilityName
@@ -233,6 +342,13 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	
 	if (enabled == 1 and duration > 1.5) then
 		self:newCooldown(abilityName, startTime, duration, texture, type)
+		if (interrupted and settings.enableOutput) then
+			local schoolName = spellSchools[self.spellSchoolID].Name
+			local colorString = spellSchools[self.spellSchoolID].colorString
+			local result = colorString .. format(L["%s school is locked!"], schoolName) .. " " .. duration .. " seconds|r"
+			
+			self:print(result)
+		end
 	end
 	
 	self.updateAbility = nil
@@ -277,6 +393,14 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 	self.updateAbility = unit..","..spellName
 end
 
+addon.UNIT_SPELLCAST_FAILED_QUIET = function(self, unit, spellName)
+	if (unit ~= "player") then
+		return
+	end
+	
+	self.updateAbility = unit..","..spellName..",true"
+end
+
 addon.SPELL_UPDATE_USABLE = function(self)
 	for name, frame in next, self.active do
 		local startTime, dur
@@ -307,6 +431,15 @@ addon.SPELL_UPDATE_USABLE = function(self)
 			frame.Cooldown:SetCooldown(start, dur)
 		end
 	end
+end
+
+addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, _, _, _, ...)
+	if (event ~= "SPELL_CAST_START" or sourceGUID ~= self.playerGUID) then
+		return
+	end
+	
+	local _, _, spellSchoolID = ...
+	self.spellSchoolID = spellSchoolID
 end
 
 addon:SetScript("OnEvent", function(self, event, ...)

@@ -18,3 +18,13 @@ settings.relFrame = "UIParent"
 settings.relPoint = "CENTER"
 settings.xOffset = 0
 settings.yOffset = -150
+
+
+-- Enable / Disable school lockout output
+settings.enableOutput = true
+
+-- Possible methods: standard, msbt, sct, uierrorsframe. If none is specified chat will be used. Not case sensitive.
+settings.outputMethod = "standard"
+
+-- Time for the standard method to stay shown. In seconds.
+settings.outputTime = 3
