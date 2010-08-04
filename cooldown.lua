@@ -2,7 +2,8 @@ local _, settings = ...
 
 local gxMedia = gxMedia or {
 	buttonOverlay = [=[Interface\Buttons\UI-ActionButton-Border]=],
-	edgeFile = [=[Interface\Tooltips\UI-Tooltip-Border]=]
+	edgeFile = [=[Interface\Tooltips\UI-Tooltip-Border]=],
+	font = [=[Fonts\FRIZQT__.TTF]=]
 }
 
 local tinsert = table.insert
@@ -65,18 +66,18 @@ local createOutput = function(self)
 	return output
 end
 
-addon.print = function(self, ...)
+addon.print = function(self, message)
 	local method = lower(settings.outputMethod)
 	
 	if (method == "uierrorsframe") then
-		UIErrorsFrame:AddMessage(...)
+		UIErrorsFrame:AddMessage(message)
 	elseif (method == "sct" and IsAddOnLoaded("sct") and SCT) then
-		SCT:DisplayMessage(..., {r = 1, g = 1, b = 1})
+		SCT:DisplayMessage(message, {r = 1, g = 1, b = 1})
 	elseif (method == "msbt" and IsAddOnLoaded("MikScrollingBattleText") and MikSBT) then
-		MikSBT.DisplayMessage(...)
+		MikSBT.DisplayMessage(message)
 	elseif (method == "standard") then
 		local output = self.output or createOutput(self)
-		output:SetText(...)
+		output:SetText(message)
 		output:SetAlpha(1)
 		self.duration = settings.outputTime
 		self:SetScript("OnUpdate", function(self, elapsed)
@@ -95,7 +96,7 @@ addon.print = function(self, ...)
 			self.duration = duration
 		end)
 	else
-		print("|cffffaa00gx|r|cff999999Cooldowns:|r", ...)
+		print("|cffffaa00gx|r|cff999999Cooldowns:|r", message)
 	end
 end
 
