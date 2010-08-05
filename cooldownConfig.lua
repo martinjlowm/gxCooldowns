@@ -23,8 +23,8 @@ settings.yOffset = -150
 -- Enable / Disable school lockout output
 settings.enableOutput = true
 
--- Possible methods: standard, msbt, sct, uierrorsframe. If none is specified chat will be used. Not case sensitive.
-settings.outputMethod = "standard"
+-- Possible methods: Standard, MSBT, SCT, UIErrorsFrame. If none is specified chat will be used. Not case sensitive.
+settings.outputMethod = "Standard"
 
 -- Time for the standard method to stay shown. In seconds.
 settings.outputTime = 3

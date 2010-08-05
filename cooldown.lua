@@ -1,4 +1,5 @@
 local _, settings = ...
+local L = settings.L
 
 local gxMedia = gxMedia or {
 	buttonOverlay = [=[Interface\Buttons\UI-ActionButton-Border]=],
@@ -19,36 +20,8 @@ local GetSpellTexture = GetSpellTexture
 local GetItemCooldown = GetItemCooldown
 local GetPetActionCooldown = GetPetActionCooldown
 
-local L = {}
-L["%s school is locked!"] = "%s school is locked!"
-L["Physical"] = "Physical"
-L["Holy"] = "Holy"
-L["Fire"] = "Fire"
-L["Nature"] = "Nature"
-L["Frost"] = "Frost"
-L["Shadow"] = "Shadow"
-L["Arcane"] = "Arcane"
-if (GetLocale() == "deDE") then
-	L["%s school is locked!"] = "%s school is locked!"
-	L["Physical"] = "Physical"
-	L["Holy"] = "Holy"
-	L["Fire"] = "Feuer"
-	L["Nature"] = "Nature"
-	L["Frost"] = "Frost"
-	L["Shadow"] = "Shadow"
-	L["Arcane"] = "Arcane"
-elseif (GetLocale() == "frFR") then
-	L["%s school is locked!"] = "%s school is locked!"
-	L["Physical"] = "Physical"
-	L["Holy"] = "Holy"
-	L["Fire"] = "Feu"
-	L["Nature"] = "Nature"
-	L["Frost"] = "Frost"
-	L["Shadow"] = "Shadow"
-	L["Arcane"] = "Arcane"
-end
-
 local addon = CreateFrame("Frame", nil, UIParent)
+addon:SetFrameLevel(2)
 addon:RegisterEvent("PLAYER_LOGIN")
 addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 addon:RegisterEvent("BAG_UPDATE_COOLDOWN")
@@ -67,6 +40,7 @@ local createOutput = function(self)
 end
 
 addon.print = function(self, message)
+	local IsAddOnLoaded = IsAddOnLoaded
 	local method = lower(settings.outputMethod)
 	
 	if (method == "uierrorsframe") then
@@ -108,8 +82,9 @@ local loadFrame = function(self)
 	local frame = CreateFrame("Frame", nil, self)
 	frame:SetWidth(self.frameSize)
 	frame:SetHeight(self.frameSize)
-	frame:SetFrameLevel(self:GetFrameLevel() - 1)
+	frame:SetFrameLevel(self:GetFrameLevel() - 2)
 	frame:Hide()
+	frame.parent = self
 	
 	local backdrop = CreateFrame("Frame", nil, frame)
 	backdrop:SetPoint("TOPLEFT", frame, -4, 4)
@@ -146,7 +121,7 @@ local loadFrame = function(self)
 	frame:SetScript("OnUpdate", function(self, elapsed)
 		local duration = self.duration - elapsed
 		if (duration <= 0) then
-			self:GetParent():dropCooldown(self.name)
+			self.parent:dropCooldown(self.name)
 			
 			return
 		end
@@ -265,7 +240,7 @@ end
 local spellSchools = { -- We assume players can't use combined schools
 	[1] = {
 		Name = L["Physical"],
-		colorString = "|cffFFFF00",
+		colorString = "|cffFFFF00"
 	},
 	[2] = {
 		Name = L["Holy"],
@@ -346,7 +321,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		if (interrupted and settings.enableOutput) then
 			local schoolName = spellSchools[self.spellSchoolID].Name
 			local colorString = spellSchools[self.spellSchoolID].colorString
-			local result = colorString .. format(L["%s school is locked!"], schoolName) .. " " .. duration .. " seconds|r"
+			local result = colorString .. format(L["%s school is locked for %d seconds!"], schoolName, duration) .. "|r"
 			
 			self:print(result)
 		end
@@ -399,7 +374,7 @@ addon.UNIT_SPELLCAST_FAILED_QUIET = function(self, unit, spellName)
 		return
 	end
 	
-	self.updateAbility = unit..","..spellName..",true"
+	self.updateAbility = unit..","..spellName..",true" -- interrupted
 end
 
 addon.SPELL_UPDATE_USABLE = function(self)
