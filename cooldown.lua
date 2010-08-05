@@ -29,6 +29,8 @@ addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 addon:RegisterEvent("UNIT_SPELLCAST_FAILED_QUIET")
 addon:RegisterEvent("SPELL_UPDATE_USABLE")
 addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+addon.active = {}
+addon.pool = {}
 
 local createOutput = function(self)
 	local output = self:CreateFontString(nil, "OVERLAY")
@@ -212,10 +214,7 @@ end
 
 addon.PLAYER_LOGIN = function(self)
 	self.playerGUID = UnitGUID("player")
-	
 	self.frameSize = settings.frameSize
-	self.active = {}
-	self.pool = {}
 	
 	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
 	self:SetHeight(1) -- We need to set some dimension to the frame to make it show.
