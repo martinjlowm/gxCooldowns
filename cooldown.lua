@@ -274,7 +274,9 @@ local specialOccasions = {
 	[GetSpellInfo(5384)] = true,	-- Feign Death
 	[GetSpellInfo(14751)] = true,	-- Inner Focus
 	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
-	[GetSpellInfo(12043)] = true	-- Presence of Mind
+	[GetSpellInfo(12043)] = true,	-- Presence of Mind
+	[GetSpellInfo(5215)] = true,	-- Prowl
+	[GetSpellInfo(1784)] = true		-- Stealth
 }
 addon.SPELL_UPDATE_COOLDOWN = function(self)
 	if (self.updateNext) then
