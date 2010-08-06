@@ -337,41 +337,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	self.updateAbility = nil
 end
 
---[[local enchants = {
-	[6] = "3601", -- Belt: Frag Belt
-	[8] = "3606", -- Boots: Nitro Boosts
-	[10] = "3604,3603", -- Gloves: Hyperspeed Accelerators, Hand-Mounted Pyro Rocket
-	[15] = "3859", -- Cloak: Springy Arachnoweave
-}]]
 addon.BAG_UPDATE_COOLDOWN = function(self)
-	--[[local prevCD = {
-		start = 0,
-		dur = 0
-	}
-	
-	for item in next, settings.items do
-		if (GetItemCount(item) > 0) then
-			startTime, duration, enabled = GetItemCooldown(item)
-			print(prevCD and prevCD.start, startTime)
-			if (prevCD.start ~= startTime and prevCD.dur ~= duration) then
-				texture = select(10, GetItemInfo(item))
-				if (enabled == 1 and duration > 1.5) then
-					self:newCooldown(item, startTime, duration, texture, "ITEM")
-				end
-			end
-			
-			texture = select(10, GetItemInfo(item))
-			if (enabled == 1 and duration > 1.5) then
-				self:newCooldown(item, startTime, duration, texture, "ITEM")
-			end
-			
-			prevCD = {
-				start = startTime,
-				dur = duration,
-				enable = enabled
-			}
-		end
-	end]]
 	local startTime, duration, enabled, texture
 	if (self.updateItem) then
 		startTime, duration = GetItemCooldown(self.updateItem)
@@ -392,26 +358,10 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 		
 		self.updateSlotID = nil
 	end
-	
-	--[[local itemLink, enchantID, itemID
-	for slotID, enchantList in next, enchants do
-		startTime, duration, enabled = GetInventoryItemCooldown("player", slotID)
-		if (enabled == 1 and duration > 1.5) then
-			itemLink = GetInventoryItemLink("player", slotID)
-			if (itemLink) then
-				itemID, enchantID = match(itemLink, "Hitem:(%d+):(%d+)")
-				if (find(enchantList, enchantID)) then
-					texture = select(10, GetItemInfo(itemID))
-					self:newCooldown(itemID, startTime, duration, texture, "ITEM")
-				end
-			end
-		end
-	end]]
 end
 
 local spellNameToSlotID = {}
 local enchantIDToSpellName = {
-	--[3600] = GetSpellInfo(48113),	-- TEST PoM
 	[3601] = GetSpellInfo(54793),	-- Frag Belt
 	[3603] = GetSpellInfo(54998),	-- Hand-Mounted Pyro Rocket
 	[3604] = GetSpellInfo(54999),	-- Hyperspeed Accelerators
