@@ -29,6 +29,7 @@ addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 addon:RegisterEvent("UNIT_SPELLCAST_FAILED_QUIET")
 addon:RegisterEvent("SPELL_UPDATE_USABLE")
 addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+addon:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 addon.active = {}
 addon.pool = {}
 
@@ -232,6 +233,11 @@ addon.PLAYER_LOGIN = function(self)
 		end
 	end
 	
+	-- Add equipped items to our enchant list, if they have enchants of our wish.
+	for i = 1, 19 do
+		self:PLAYER_EQUIPMENT_CHANGED(i, true)
+	end
+	
 	self:UnregisterEvent("PLAYER_LOGIN")
 	self.PLAYER_LOGIN = nil
 end
@@ -331,22 +337,63 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	self.updateAbility = nil
 end
 
-local enchants = {
+--[[local enchants = {
 	[6] = "3601", -- Belt: Frag Belt
 	[8] = "3606", -- Boots: Nitro Boosts
 	[10] = "3604,3603", -- Gloves: Hyperspeed Accelerators, Hand-Mounted Pyro Rocket
 	[15] = "3859", -- Cloak: Springy Arachnoweave
-}
+}]]
 addon.BAG_UPDATE_COOLDOWN = function(self)
-	local startTime, duration, enabled, texture
-	for itemID in next, settings.items do
-		startTime, duration, enabled = GetItemCooldown(itemID)
-		texture = select(10, GetItemInfo(itemID))
-		if (enabled == 1 and duration > 1.5) then
-			self:newCooldown(itemID, startTime, duration, texture, "ITEM")
+	--[[local prevCD = {
+		start = 0,
+		dur = 0
+	}
+	
+	for item in next, settings.items do
+		if (GetItemCount(item) > 0) then
+			startTime, duration, enabled = GetItemCooldown(item)
+			print(prevCD and prevCD.start, startTime)
+			if (prevCD.start ~= startTime and prevCD.dur ~= duration) then
+				texture = select(10, GetItemInfo(item))
+				if (enabled == 1 and duration > 1.5) then
+					self:newCooldown(item, startTime, duration, texture, "ITEM")
+				end
+			end
+			
+			texture = select(10, GetItemInfo(item))
+			if (enabled == 1 and duration > 1.5) then
+				self:newCooldown(item, startTime, duration, texture, "ITEM")
+			end
+			
+			prevCD = {
+				start = startTime,
+				dur = duration,
+				enable = enabled
+			}
 		end
+	end]]
+	local startTime, duration, enabled, texture
+	if (self.updateItem) then
+		startTime, duration = GetItemCooldown(self.updateItem)
+		if (startTime > 0 and duration > 1.5) then
+			texture = select(10, GetItemInfo(self.updateItem))
+			self:newCooldown(self.updateItem, startTime, duration, texture, "ITEM")
+		end
+		
+		self.updateItem = nil
 	end
-	local itemLink, enchantID, itemID
+	
+	if (self.updateSlotID) then
+		startTime, duration, enabled = GetInventoryItemCooldown("player", self.updateSlotID)
+		if (enabled == 1 and duration > 1.5) then
+			texture = GetInventoryItemTexture("player", self.updateSlotID)
+			self:newCooldown(self.updateSlotID, startTime, duration, texture, "INVENTORY")
+		end
+		
+		self.updateSlotID = nil
+	end
+	
+	--[[local itemLink, enchantID, itemID
 	for slotID, enchantList in next, enchants do
 		startTime, duration, enabled = GetInventoryItemCooldown("player", slotID)
 		if (enabled == 1 and duration > 1.5) then
@@ -359,11 +406,61 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 				end
 			end
 		end
+	end]]
+end
+
+local spellNameToSlotID = {}
+local enchantIDToSpellName = {
+	--[3600] = GetSpellInfo(48113),	-- TEST PoM
+	[3601] = GetSpellInfo(54793),	-- Frag Belt
+	[3603] = GetSpellInfo(54998),	-- Hand-Mounted Pyro Rocket
+	[3604] = GetSpellInfo(54999),	-- Hyperspeed Accelerators
+	[3606] = GetSpellInfo(55016),	-- Nitro Boosts
+	[3859] = GetSpellInfo(63765)	-- Springy Arachnoweave
+}
+
+addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
+	if (not beingEquipped) then
+		for spellName, id in next, spellNameToSlotID do
+			if (id and id == slotID) then
+				spellNameToSlotID[spellName] = nil
+				
+				break
+			end
+		end
+		
+		return
+	end
+	
+	local itemLink = GetInventoryItemLink("player", slotID)
+	if (itemLink) then
+		local _, enchantID = match(itemLink, "Hitem:(%d+):(%d+)")
+		if (enchantIDToSpellName[enchantID]) then
+			local spellName = enchantIDToSpellName[enchantID]
+			spellNameToSlotID[spellName] = slotID
+		end
 	end
 end
 
 addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 	if ((unit ~= "player" and unit ~= "pet") or settings.blacklist[spellName]) then
+		return
+	end
+	
+	local itemSpell
+	for item in next, settings.items do
+		itemSpell = GetItemSpell(item)
+		if (itemSpell == spellName) then
+			self.updateItem = item
+			
+			return
+		end
+	end
+	
+	local slotID = spellNameToSlotID[spellName]
+	if (slotID) then
+		self.updateSlotID = slotID
+		
 		return
 	end
 	
@@ -385,6 +482,8 @@ addon.SPELL_UPDATE_USABLE = function(self)
 			start, dur = GetSpellCooldown(name)
 		elseif (frame.type == "ITEM") then
 			start, dur = GetItemCooldown(name)
+		elseif (frame.type == "INVENTORY") then
+			start, dur = GetInventoryItemCooldown("player", name)
 		elseif (frame.type == "PET") then
 			start, dur = GetPetActionCooldown(name)
 		end
