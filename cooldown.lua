@@ -339,14 +339,27 @@ end
 
 addon.BAG_UPDATE_COOLDOWN = function(self)
 	local startTime, duration, enabled, texture
+	
+	if (self.queuedItem) then	-- For items with a cooldown that doesn't start before leaving combat!
+		startTime, duration, enabled = GetItemCooldown(self.queuedItem)
+		if (enabled == 1 and duration > 1.5) then
+			texture = select(10, GetItemInfo(self.queuedItem))
+			self:newCooldown(self.queuedItem, startTime, duration, texture, "ITEM")
+			
+			self.queuedItem = nil
+		end
+	end
+	
 	if (self.updateItem) then
-		startTime, duration = GetItemCooldown(self.updateItem)
-		if (startTime > 0 and duration > 1.5) then
+		startTime, duration, enabled = GetItemCooldown(self.updateItem)
+		if (enabled == 1 and duration > 1.5) then
 			texture = select(10, GetItemInfo(self.updateItem))
 			self:newCooldown(self.updateItem, startTime, duration, texture, "ITEM")
+			self.updateItem = nil
+		elseif (enabled == 0 and duration > 1.5) then
+			self.queuedItem = self.updateItem
+			self.updateItem = nil
 		end
-		
-		self.updateItem = nil
 	end
 	
 	if (self.updateSlotID) then
@@ -354,9 +367,9 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 		if (enabled == 1 and duration > 1.5) then
 			texture = GetInventoryItemTexture("player", self.updateSlotID)
 			self:newCooldown(self.updateSlotID, startTime, duration, texture, "INVENTORY")
+			
+			self.updateSlotID = nil
 		end
-		
-		self.updateSlotID = nil
 	end
 end
 
