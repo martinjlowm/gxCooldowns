@@ -283,6 +283,10 @@ local specialOccasions = {
 	[GetSpellInfo(5215)] = true,	-- Prowl
 	[GetSpellInfo(1784)] = true		-- Stealth
 }
+local sharedCooldowns = {
+	[GetSpellInfo(16979)] = true,	-- Feral Charge - Bear
+	[GetSpellInfo(49376)] = true	-- Feral Charge - Cat
+}
 addon.SPELL_UPDATE_COOLDOWN = function(self)
 	if (self.updateNext) then
 		local sStartTime, sDuration, sEnabled = GetSpellCooldown(self.updateNext)
@@ -290,6 +294,20 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 			self:newCooldown(self.updateNext, sStartTime, sDuration, GetSpellTexture(self.updateNext), "SPELL")
 			self.updateNext = nil
 		end
+	end
+	
+	local startTime, duration, enabled, texture, type
+	
+	if (self.updateShared) then
+		for spell in next, sharedCooldowns do
+			type = "SPELL"
+			texture = GetSpellTexture(spell)
+			startTime, duration, enabled = GetSpellCooldown(spell)
+			
+			self:newCooldown(spell, startTime, duration, texture, type)
+		end
+		
+		self.updateShared = nil
 	end
 	
 	if (not self.updateAbility) then
@@ -303,7 +321,6 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		return
 	end
 	
-	local startTime, duration, enabled, texture, type
 	if (unit == "player") then
 		type = "SPELL"
 		texture = GetSpellTexture(abilityName)
@@ -325,6 +342,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	
 	if (enabled == 1 and duration > 1.5) then
 		self:newCooldown(abilityName, startTime, duration, texture, type)
+		
 		if (interrupted and settings.enableOutput) then
 			local schoolName = spellSchools[self.spellSchoolID].Name
 			local colorString = spellSchools[self.spellSchoolID].colorString
@@ -381,7 +399,6 @@ local enchantIDToSpellName = {
 	[3606] = GetSpellInfo(55016),	-- Nitro Boosts
 	[3859] = GetSpellInfo(63765)	-- Springy Arachnoweave
 }
-
 addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 	if (not beingEquipped) then
 		for spellName, id in next, spellNameToSlotID do
@@ -427,6 +444,12 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 		return
 	end
 	
+	if (sharedCooldowns[spellName]) then -- This should be druids only
+		self.updateShared = true
+		
+		return
+	end
+	
 	self.updateAbility = unit..","..spellName
 end
 
@@ -461,7 +484,7 @@ addon.SPELL_UPDATE_USABLE = function(self)
 			return
 		end
 		
-		if (frame.start > start) then
+		if (frame.start > start or frame.max > dur) then
 			local duration = start - GetTime() + dur
 			frame.start = start
 			frame.duration = duration
