@@ -3,6 +3,7 @@ local _, settings = ...
 settings.blacklist = {
 	--["Astral Recall"] = true,
 }
+settings.minDuration = nil
 
 -- The spell is what triggers the cooldown, so if you add items that has the same spell effect
 -- it will choose yours if you added it above the one listed.

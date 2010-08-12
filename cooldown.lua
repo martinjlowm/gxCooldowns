@@ -178,7 +178,7 @@ local repositionFrames = function(self)
 end
 
 addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
-	if (self.active[cooldownName]) then
+	if (self.active[cooldownName] or (settings.minDuration and seconds < settings.minDuration)) then
 		return
 	end
 	
@@ -284,8 +284,7 @@ local specialOccasions = {
 	[GetSpellInfo(1784)] = true		-- Stealth
 }
 local sharedCooldowns = {
-	[GetSpellInfo(16979)] = true,	-- Feral Charge - Bear
-	[GetSpellInfo(49376)] = true	-- Feral Charge - Cat
+	[GetSpellInfo(16979)] = GetSpellInfo(49376)	-- 'Feral Charge - Bear' refreshes 'Feral Charge - Cat'
 }
 addon.SPELL_UPDATE_COOLDOWN = function(self)
 	if (self.updateNext) then
@@ -445,7 +444,7 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 	end
 	
 	if (sharedCooldowns[spellName]) then -- This should be druids only
-		self.updateShared = true
+		self.updateShared = sharedCooldowns[spellName]
 		
 		return
 	end
