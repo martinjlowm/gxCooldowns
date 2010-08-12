@@ -284,7 +284,7 @@ local specialOccasions = {
 	[GetSpellInfo(1784)] = true		-- Stealth
 }
 local sharedCooldowns = {
-	[GetSpellInfo(16979)] = GetSpellInfo(49376)	-- 'Feral Charge - Bear' refreshes 'Feral Charge - Cat'
+	[GetSpellInfo(49376)] = GetSpellInfo(16979)	-- 'Feral Charge - Cat' refreshes 'Feral Charge - Bear'
 }
 addon.SPELL_UPDATE_COOLDOWN = function(self)
 	if (self.updateNext) then
@@ -298,13 +298,9 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	local startTime, duration, enabled, texture, type
 	
 	if (self.updateShared) then
-		for spell in next, sharedCooldowns do
-			type = "SPELL"
-			texture = GetSpellTexture(spell)
-			startTime, duration, enabled = GetSpellCooldown(spell)
-			
-			self:newCooldown(spell, startTime, duration, texture, type)
-		end
+		texture = GetSpellTexture(self.updateShared)
+		startTime, duration, enabled = GetSpellCooldown(self.updateShared)
+		self:newCooldown(self.updateShared, startTime, duration, texture, "SPELL")
 		
 		self.updateShared = nil
 	end
@@ -445,8 +441,6 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 	
 	if (sharedCooldowns[spellName]) then -- This should be druids only
 		self.updateShared = sharedCooldowns[spellName]
-		
-		return
 	end
 	
 	self.updateAbility = unit..","..spellName

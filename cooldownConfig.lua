@@ -3,6 +3,7 @@ local _, settings = ...
 settings.blacklist = {
 	--["Astral Recall"] = true,
 }
+-- Set the minimum duration of the tracked cooldowns, replace 'nil' with the number of you wish. Nil disables the feature.
 settings.minDuration = nil
 
 -- The spell is what triggers the cooldown, so if you add items that has the same spell effect
