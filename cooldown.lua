@@ -410,6 +410,8 @@ addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 	local itemLink = GetInventoryItemLink("player", slotID)
 	if (itemLink) then
 		local _, enchantID = match(itemLink, "Hitem:(%d+):(%d+)")
+		enchantID = tonumber(enchantID)
+		
 		if (enchantIDToSpellName[enchantID]) then
 			local spellName = enchantIDToSpellName[enchantID]
 			spellNameToSlotID[spellName] = slotID
@@ -431,7 +433,7 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 			return
 		end
 	end
-	
+	print(spellName, spellNameToSlotID[spellName])
 	local slotID = spellNameToSlotID[spellName]
 	if (slotID) then
 		self.updateSlotID = slotID
