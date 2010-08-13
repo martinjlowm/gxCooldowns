@@ -433,7 +433,7 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 			return
 		end
 	end
-	print(spellName, spellNameToSlotID[spellName])
+	
 	local slotID = spellNameToSlotID[spellName]
 	if (slotID) then
 		self.updateSlotID = slotID
