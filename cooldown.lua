@@ -178,7 +178,7 @@ local repositionFrames = function(self)
 end
 
 addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
-	if (self.active[cooldownName] or (settings.minDuration and seconds < settings.minDuration)) then
+	if (self.active[cooldownName]) then
 		return
 	end
 	
@@ -228,7 +228,7 @@ addon.PLAYER_LOGIN = function(self)
 	for spellNum = 1, numSpells do
 		spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
 		startTime, duration, enabled = GetSpellCooldown(spellName)
-		if (enabled == 1 and duration > 1.5) then
+		if (enabled == 1 and duration > settings.minDuration) then
 			self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL")
 		end
 	end
@@ -289,7 +289,7 @@ local sharedCooldowns = {
 addon.SPELL_UPDATE_COOLDOWN = function(self)
 	if (self.updateNext) then
 		local sStartTime, sDuration, sEnabled = GetSpellCooldown(self.updateNext)
-		if (sEnabled == 1 and sDuration > 1.5) then
+		if (sEnabled == 1 and sDuration > settings.minDuration) then
 			self:newCooldown(self.updateNext, sStartTime, sDuration, GetSpellTexture(self.updateNext), "SPELL")
 			self.updateNext = nil
 		end
@@ -335,7 +335,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		end
 	end
 	
-	if (enabled == 1 and duration > 1.5) then
+	if (enabled == 1 and duration > settings.minDuration)) then
 		self:newCooldown(abilityName, startTime, duration, texture, type)
 		
 		if (interrupted and settings.enableOutput) then
@@ -355,7 +355,7 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	
 	if (self.queuedItem) then	-- For items with a cooldown that doesn't start before leaving combat!
 		startTime, duration, enabled = GetItemCooldown(self.queuedItem)
-		if (enabled == 1 and duration > 1.5) then
+		if (enabled == 1 and duration > settings.minDuration) then
 			texture = select(10, GetItemInfo(self.queuedItem))
 			self:newCooldown(self.queuedItem, startTime, duration, texture, "ITEM")
 			
@@ -365,11 +365,11 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	
 	if (self.updateItem) then
 		startTime, duration, enabled = GetItemCooldown(self.updateItem)
-		if (enabled == 1 and duration > 1.5) then
+		if (enabled == 1 and duration > settings.minDuration) then
 			texture = select(10, GetItemInfo(self.updateItem))
 			self:newCooldown(self.updateItem, startTime, duration, texture, "ITEM")
 			self.updateItem = nil
-		elseif (enabled == 0 and duration > 1.5) then
+		elseif (enabled == 0 and duration > settings.minDuration) then
 			self.queuedItem = self.updateItem
 			self.updateItem = nil
 		end
@@ -377,7 +377,7 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	
 	if (self.updateSlotID) then
 		startTime, duration, enabled = GetInventoryItemCooldown("player", self.updateSlotID)
-		if (enabled == 1 and duration > 1.5) then
+		if (enabled == 1 and duration > settings.minDuration) then
 			texture = GetInventoryItemTexture("player", self.updateSlotID)
 			self:newCooldown(self.updateSlotID, startTime, duration, texture, "INVENTORY")
 			
