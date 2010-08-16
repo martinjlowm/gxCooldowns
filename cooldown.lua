@@ -287,15 +287,15 @@ local sharedCooldowns = {
 	[GetSpellInfo(49376)] = GetSpellInfo(16979)	-- 'Feral Charge - Cat' refreshes 'Feral Charge - Bear'
 }
 addon.SPELL_UPDATE_COOLDOWN = function(self)
+	local startTime, duration, enabled, texture
 	if (self.updateNext) then
-		local sStartTime, sDuration, sEnabled = GetSpellCooldown(self.updateNext)
-		if (sEnabled == 1 and sDuration > settings.minDuration) then
-			self:newCooldown(self.updateNext, sStartTime, sDuration, GetSpellTexture(self.updateNext), "SPELL")
+		startTime, duration, enabled = GetSpellCooldown(self.updateNext)
+		if (enabled == 1 and duration > settings.minDuration) then
+			texture = GetSpellTexture(self.updateNext)
+			self:newCooldown(self.updateNext, startTime, duration, texture, "SPELL")
 			self.updateNext = nil
 		end
 	end
-	
-	local startTime, duration, enabled, texture, type
 	
 	if (self.updateShared) then
 		texture = GetSpellTexture(self.updateShared)
@@ -310,12 +310,12 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	end
 	
 	local unit, abilityName, interrupted = split(",", self.updateAbility)
-	
 	if (specialOccasions[abilityName]) then
 		self.updateNext = abilityName
 		return
 	end
 	
+	local type
 	if (unit == "player") then
 		type = "SPELL"
 		texture = GetSpellTexture(abilityName)
@@ -335,7 +335,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		end
 	end
 	
-	if (enabled == 1 and duration > settings.minDuration)) then
+	if (enabled == 1 and duration > settings.minDuration) then
 		self:newCooldown(abilityName, startTime, duration, texture, type)
 		
 		if (interrupted and settings.enableOutput) then
