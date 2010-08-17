@@ -3,15 +3,19 @@ local _, settings = ...
 settings.blacklist = {
 	--["Astral Recall"] = true,
 }
--- Set the minimum duration of the tracked cooldowns.
+-- Set the minimum or maximum duration of the tracked cooldowns.
 settings.minDuration = 1.5
+settings.maxDuration = nil	-- nil clears the limit, only works for maxDuration.
 
 -- The spell is what triggers the cooldown, so if you add items that has the same spell effect
 -- it will choose yours if you added it above the one listed.
 settings.items = { 
 	[42122] = true,	-- Medallion of the Horde	'PvP Trinket'
 	[33448] = true,	-- Runic Mana Potion		'Restore Mana'
-	[33447] = true	-- Runic Healing Potion		'Healing Potion'
+	[33447] = true,	-- Runic Healing Potion		'Healing Potion'
+	[40093] = true,	-- Indestructible Potion	'Indestructible'
+	[40211] = true,	-- Potion of Speed			'Speed'
+	[40212] = true	-- Potion of Wild Magic		'Wild Magic'
 }
 
 settings.frameSize = 34
