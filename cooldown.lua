@@ -21,6 +21,8 @@ local GetItemCooldown = GetItemCooldown
 local GetPetActionCooldown = GetPetActionCooldown
 
 local addon = CreateFrame("Frame", nil, UIParent)
+addon:SetHeight(1)
+addon:SetWidth(1)
 addon:SetFrameLevel(2)
 addon:RegisterEvent("PLAYER_LOGIN")
 addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
@@ -122,6 +124,11 @@ local loadFrame = function(self)
 	overlay:SetTexCoord(0, 1, 0.02, 1)
 	
 	frame:SetScript("OnUpdate", function(self, elapsed)
+		if (elapsed > 3 and self.elapseFix) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
+			elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
+			self.elapseFix = nil
+		end
+		
 		local duration = self.duration - elapsed
 		if (duration <= 0) then
 			self.parent:dropCooldown(self.name)
@@ -140,12 +147,6 @@ local loadFrame = function(self)
 	return frame
 end
 
-local saveFrame = function(self, frame)
-	frame:Hide()
-	
-	tinsert(self.pool, frame)
-end
-
 local repositionFrames = function(self)
 	local gap = settings.gap
 	
@@ -156,13 +157,13 @@ local repositionFrames = function(self)
 			if (prev) then
 				frame:SetPoint("LEFT", prev, "RIGHT", gap, 0)
 			else
-				frame:SetPoint("LEFT", self, "LEFT", 0, 0)
+				frame:SetPoint("LEFT", self, "LEFT")
 			end
 		else
 			if (prev) then
 				frame:SetPoint("BOTTOM", prev, "TOP", 0, gap)
 			else
-				frame:SetPoint("BOTTOM", self, "BOTTOM", 0, 0)
+				frame:SetPoint("BOTTOM", self, "BOTTOM")
 			end
 		end
 		
@@ -177,15 +178,16 @@ local repositionFrames = function(self)
 	end
 end
 
-addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
+addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, type, elapseFix)
 	if (self.active[cooldownName]) then
 		return
 	end
 	
 	local frame = loadFrame(self)
 	
-	local duration = startTime - GetTime() + seconds
+	local duration = seconds - (GetTime() - startTime)
 	frame.start = startTime
+	frame.elapseFix = elapseFix
 	frame.duration = duration
 	frame.max = seconds
 	
@@ -202,8 +204,10 @@ addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, type)
 end
 
 addon.dropCooldown = function(self, cooldownName)
-	if (self.active[cooldownName]) then
-		saveFrame(self, self.active[cooldownName])
+	local frame = self.active[cooldownName]
+	if (frame) then
+		frame:Hide()
+		tinsert(self.pool, frame)
 		self.active[cooldownName] = nil
 		
 		repositionFrames(self)
@@ -218,18 +222,17 @@ addon.PLAYER_LOGIN = function(self)
 	self.frameSize = settings.frameSize
 	
 	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
-	self:SetHeight(1) -- We need to set some dimension to the frame to make it show.
 	
 	-- Scan when we reload the UI or log in w/e
 	local _, _, offset, numSpellsInTab = GetSpellTabInfo(GetNumSpellTabs())
 	local numSpells = offset + numSpellsInTab
 	
-	local spellName, duration, enabled
+	local spellName, startTime, duration, enabled
 	for spellNum = 1, numSpells do
 		spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
 		startTime, duration, enabled = GetSpellCooldown(spellName)
 		if (enabled == 1 and duration > settings.minDuration) then
-			self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL")
+			self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL", true)
 		end
 	end
 	
