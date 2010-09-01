@@ -15,7 +15,8 @@ settings.items = {
 	[33447] = true,	-- Runic Healing Potion		'Healing Potion'
 	[40093] = true,	-- Indestructible Potion	'Indestructible'
 	[40211] = true,	-- Potion of Speed			'Speed'
-	[40212] = true	-- Potion of Wild Magic		'Wild Magic'
+	[40212] = true,	-- Potion of Wild Magic		'Wild Magic'
+	[22044] = true	-- Mana Emerald				'Replenish Mana'
 }
 
 settings.frameSize = 34

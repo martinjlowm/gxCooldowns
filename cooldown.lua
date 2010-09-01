@@ -282,9 +282,7 @@ local specialOccasions = {
 	[GetSpellInfo(5384)] = true,	-- Feign Death
 	[GetSpellInfo(14751)] = true,	-- Inner Focus
 	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
-	[GetSpellInfo(12043)] = true,	-- Presence of Mind
-	[GetSpellInfo(5215)] = true,	-- Prowl
-	[GetSpellInfo(1784)] = true		-- Stealth
+	[GetSpellInfo(12043)] = true	-- Presence of Mind
 }
 local sharedCooldowns = {
 	[GetSpellInfo(49376)] = GetSpellInfo(16979)	-- 'Feral Charge - Cat' refreshes 'Feral Charge - Bear'
@@ -500,6 +498,17 @@ addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, _
 	
 	local _, _, spellSchoolID = ...
 	self.spellSchoolID = spellSchoolID
+end
+
+do
+	local class = select(2, UnitClass("player"))
+	if (class == "ROGUE" or class == "DRUID") then
+		local stealth = class == "ROGUE" and GetSpellInfo(1784) or GetSpellInfo(5215)
+		addon:RegisterEvent("UPDATE_STEALTH")
+		addon.UPDATE_STEALTH = function(self)
+			self.updateAbility = "player," .. stealth
+		end
+	end
 end
 
 addon:SetScript("OnEvent", function(self, event, ...)
