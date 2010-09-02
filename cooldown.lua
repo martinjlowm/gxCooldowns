@@ -277,7 +277,6 @@ local spellSchools = { -- We assume players can't use combined schools
 }
 local specialOccasions = {
 	[GetSpellInfo(14177)] = true,	-- Cold Blood
-	[GetSpellInfo(31842)] = true,	-- Divine Favor
 	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
 	[GetSpellInfo(5384)] = true,	-- Feign Death
 	[GetSpellInfo(14751)] = true,	-- Inner Focus
