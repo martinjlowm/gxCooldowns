@@ -229,7 +229,7 @@ addon.PLAYER_LOGIN = function(self)
 	
 	local spellName, startTime, duration, enabled
 	for spellNum = 1, numSpells do
-		spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
+		spellName = GetSpellBookItemName(spellNum, BOOKTYPE_SPELL)
 		startTime, duration, enabled = GetSpellCooldown(spellName)
 		if (enabled == 1 and duration > settings.minDuration) then
 			self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL", true)
@@ -277,7 +277,7 @@ local spellSchools = { -- We assume players can't use combined schools
 }
 local specialOccasions = {
 	[GetSpellInfo(14177)] = true,	-- Cold Blood
-	[GetSpellInfo(20216)] = true,	-- Divine Favor
+	[GetSpellInfo(31842)] = true,	-- Divine Favor
 	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
 	[GetSpellInfo(5384)] = true,	-- Feign Death
 	[GetSpellInfo(14751)] = true,	-- Inner Focus
