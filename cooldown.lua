@@ -2,11 +2,13 @@ local _, settings = ...
 local L = settings.L
 
 local gxMedia = gxMedia or {
-	buttonOverlay = [=[Interface\Buttons\UI-ActionButton-Border]=],
-	edgeFile = [=[Interface\Tooltips\UI-Tooltip-Border]=],
+	buttonOverlay = [=[Interface\Buttons\UI-Quickslot2]=],
+	edgeFile = [=[Interface\Buttons\UI-EmptySlot]=],
 	font = [=[Fonts\FRIZQT__.TTF]=]
 }
 
+local unpack = unpack
+local floor = floor
 local tinsert = table.insert
 local tremove = table.remove
 local split = strsplit
@@ -32,6 +34,55 @@ addon:RegisterEvent("UNIT_SPELLCAST_FAILED_QUIET")
 addon:RegisterEvent("SPELL_UPDATE_USABLE")
 addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 addon:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+local style
+if (IsAddOnLoaded("gxMedia")) then
+	style = {
+		Backdrop = {
+			Texture = gxMedia.edgeFile,
+		},
+		Cooldown = {
+			Height = 36,
+			Width = 36
+		},
+		Icon = {
+			Height = 34,
+			Width = 34,
+			TexCoords = {.07, .93, .07, .93}
+		},
+		Overlay = {
+			Height = 44,
+			Width = 44,
+			Texture = gxMedia.buttonOverlay,
+			TexCoords = {0, 1, .02, 1},
+			Color = {.6, .6, .6, 1}
+		}
+	}
+else
+	style = {
+		Backdrop = {
+			Width = 34,
+			Height = 35,
+			OffsetY = -0.5,
+			Texture = gxMedia.edgeFile,
+			TexCoords = {0.2,0.8,0.2,0.8}
+		},
+		Cooldown = {
+			Height = 36,
+			Width = 36
+		},
+		Icon = {
+			Height = 36,
+			Width = 36
+		},
+		Overlay = {
+			Height = 66,
+			Width = 66,
+			OffsetY = -1,
+			Texture = gxMedia.buttonOverlay
+		}
+	}
+end
+addon.styleDB = style
 addon.active = {}
 addon.pool = {}
 
@@ -91,37 +142,32 @@ local loadFrame = function(self)
 	frame:Hide()
 	frame.parent = self
 	
-	local backdrop = CreateFrame("Frame", nil, frame)
-	backdrop:SetPoint("TOPLEFT", frame, -4, 4)
-	backdrop:SetPoint("BOTTOMRIGHT", frame, 4, -4)
-	backdrop:SetFrameStrata("BACKGROUND")
-	backdrop:SetBackdrop({
-		edgeFile = gxMedia.edgeFile,
-		edgeSize = 5,
-		insets = {
-			left = 3,
-			right = 3,
-			top = 3,
-			bottom = 3
-		}
-	})
-	backdrop:SetBackdropColor(0, 0, 0, 0)
-	backdrop:SetBackdropBorderColor(0, 0, 0)
+	local backdrop = frame:CreateTexture(nil, "BACKGROUND")
+	backdrop:SetTexture(self.styleDB.Backdrop.Texture)
+	backdrop:SetVertexColor(unpack(self.styleDB.Backdrop.Color or {1,1,1,1}))
+	backdrop:SetTexCoord(unpack(self.styleDB.Backdrop.TexCoords or {0,1,0,1}))
+	backdrop:SetBlendMode(self.styleDB.Backdrop.BlendMode or "BLEND")
+	backdrop:SetWidth((self.styleDB.Backdrop.Width or 36) * (self.styleDB.Backdrop.Scale or 1) * self.frameSize/36)
+	backdrop:SetHeight((self.styleDB.Backdrop.Height or 36) * (self.styleDB.Backdrop.Scale or 1) * self.frameSize/36)
+	backdrop:SetPoint("CENTER", frame, "CENTER", self.styleDB.Backdrop.OffsetX or 0, self.styleDB.Backdrop.OffsetY or 0)
 	
 	local icon = frame:CreateTexture(nil, "ARTWORK")
-	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-	icon:SetAllPoints(frame)
+	icon:SetTexCoord(unpack(self.styleDB.Icon.TexCoords or {0,1,0,1}))
+	icon:SetWidth((self.styleDB.Icon.Width or 36) * (self.styleDB.Icon.Scale or 1) * self.frameSize/36)
+	icon:SetHeight((self.styleDB.Icon.Height or 36) * (self.styleDB.Icon.Scale or 1) * self.frameSize/36)
+	icon:SetPoint("CENTER")
 	
 	local cd = CreateFrame("Cooldown", nil, frame)
-	cd:SetPoint("TOPLEFT", 2, -2)
-	cd:SetPoint("BOTTOMRIGHT", -2, 2)
+	cd:SetPoint("CENTER")
+	cd:SetWidth((self.styleDB.Cooldown.Width or 36) * (self.styleDB.Cooldown.Scale or 1) * self.frameSize/36)
+	cd:SetHeight((self.styleDB.Cooldown.Height or 36) * (self.styleDB.Cooldown.Scale or 1) * self.frameSize/36)
 	
 	local overlay = frame:CreateTexture(nil, "OVERLAY")
-	overlay:SetTexture(gxMedia.buttonOverlay)
-	overlay:SetPoint("TOPLEFT", frame, -2, 2)
-	overlay:SetPoint("BOTTOMRIGHT", frame, 2, -2)
-	overlay:SetVertexColor(.6,.6,.6)
-	overlay:SetTexCoord(0, 1, 0.02, 1)
+	overlay:SetTexture(self.styleDB.Overlay.Texture)
+	overlay:SetPoint("CENTER", frame, "CENTER", self.styleDB.Overlay.OffsetX or 0, self.styleDB.Overlay.OffsetY or 0)
+	overlay:SetHeight((self.styleDB.Overlay.Height or 36) * (self.styleDB.Overlay.Scale or 1) * self.frameSize/36)
+	overlay:SetWidth((self.styleDB.Overlay.Width or 36) * (self.styleDB.Overlay.Scale or 1) * self.frameSize/36)
+	overlay:SetVertexColor(unpack(self.styleDB.Overlay.Color or {1,1,1,1}))
 	
 	frame:SetScript("OnUpdate", function(self, elapsed)
 		if (elapsed > 3 and self.elapseFix) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
@@ -217,6 +263,100 @@ addon.dropCooldown = function(self, cooldownName)
 	return
 end
 
+local LBF = LibStub("LibButtonFacade",true)
+if (LBF) then
+	local skinTable, backdrop, cooldown, icon, normal
+	local skinChanged = function(self, skinName)
+		skinTable = LBF:GetSkins()
+		backdrop = skinTable[skinName].Backdrop
+		cooldown = skinTable[skinName].Cooldown
+		icon = skinTable[skinName].Icon
+		normal = skinTable[skinName].Normal
+		
+		self.styleDB.Backdrop = backdrop
+		self.styleDB.Cooldown = cooldown
+		self.styleDB.Icon = icon
+		self.styleDB.Overlay = normal
+		
+		for _, frame in next, self.active do
+			if (not backdrop.Hide) then
+				frame.Backdrop:SetTexture(backdrop.Texture)
+				frame.Backdrop:SetVertexColor(unpack(backdrop.Color or {1,1,1,1}))
+				frame.Backdrop:SetTexCoord(unpack(backdrop.TexCoords or {0,1,0,1}))
+				frame.Backdrop:SetBlendMode(backdrop.BlendMode or "BLEND")
+				frame.Backdrop:SetWidth((backdrop.Width or 36) * (backdrop.Scale or 1) * self.frameSize/36)
+				frame.Backdrop:SetHeight((backdrop.Height or 36) * (backdrop.Scale or 1) * self.frameSize/36)
+				frame.Backdrop:ClearAllPoints()
+				frame.Backdrop:SetPoint("CENTER", frame, "CENTER", backdrop.OffsetX or 0, backdrop.OffsetY or 0)
+			else
+				frame.Backdrop:SetTexture(nil)
+			end
+			
+			if (not cooldown.Hide) then
+				frame.Cooldown:SetHeight((cooldown.Height or 36) * (cooldown.Scale or 1) * self.frameSize/36)
+				frame.Cooldown:SetWidth((cooldown.Width or 36) * (cooldown.Scale or 1) * self.frameSize/36)
+			else
+				frame.Cooldown:Hide()
+			end
+			
+			frame.Icon:SetWidth((icon.Width or 36) * (icon.Scale or 1) * self.frameSize/36)
+			frame.Icon:SetHeight((icon.Height or 36) * (icon.Scale or 1) * self.frameSize/36)
+			frame.Icon:SetTexCoord(unpack(icon.TexCoords or {0,1,0,1}))
+			
+			if (not normal.Hide) then
+				frame.Overlay:SetTexture(normal.Texture)
+				frame.Overlay:SetPoint("CENTER", frame, "CENTER", normal.OffsetX or 0, normal.OffsetY or 0)
+				frame.Overlay:SetHeight((normal.Height or 36) * (normal.Scale or 1) * self.frameSize/36)
+				frame.Overlay:SetWidth((normal.Width or 36) * (normal.Scale or 1) * self.frameSize/36)
+				frame.Overlay:SetVertexColor(unpack(normal.Color or {1,1,1,1}))
+			else
+				frame.Overlay:SetTexture(nil)
+			end
+		end
+		
+		if (#(self.pool) > 0) then
+			for _, frame in next, self.pool do
+				if (not backdrop.Hide) then
+					frame.Backdrop:SetTexture(backdrop.Texture)
+					frame.Backdrop:SetVertexColor(unpack(backdrop.Color or {1,1,1,1}))
+					frame.Backdrop:SetTexCoord(unpack(backdrop.TexCoords or {0,1,0,1}))
+					frame.Backdrop:SetBlendMode(backdrop.BlendMode or "BLEND")
+					frame.Backdrop:SetWidth((backdrop.Width or 36) * (backdrop.Scale or 1) * self.frameSize/36)
+					frame.Backdrop:SetHeight((backdrop.Height or 36) * (backdrop.Scale or 1) * self.frameSize/36)
+					frame.Backdrop:ClearAllPoints()
+					frame.Backdrop:SetPoint("CENTER", frame, "CENTER", backdrop.OffsetX or 0, backdrop.OffsetY or 0)
+				else
+					frame.Backdrop:SetTexture(nil)
+				end
+				
+				if (not cooldown.Hide) then
+					frame.Cooldown:SetHeight((cooldown.Height or 36) * (cooldown.Scale or 1) * self.frameSize/36)
+					frame.Cooldown:SetWidth((cooldown.Width or 36) * (cooldown.Scale or 1) * self.frameSize/36)
+				else
+					frame.Cooldown:Hide()
+				end
+				
+				frame.Icon:SetWidth((icon.Width or 36) * (icon.Scale or 1) * self.frameSize/36)
+				frame.Icon:SetHeight((icon.Height or 36) * (icon.Scale or 1) * self.frameSize/36)
+				frame.Icon:SetTexCoord(unpack(icon.TexCoords or {0,1,0,1}))
+				
+				if (not normal.Hide) then
+					frame.Overlay:SetTexture(normal.Texture)
+					frame.Overlay:SetPoint("CENTER", frame, "CENTER", normal.OffsetX or 0, normal.OffsetY or 0)
+					frame.Overlay:SetHeight((normal.Height or 36) * (normal.Scale or 1) * self.frameSize/36)
+					frame.Overlay:SetWidth((normal.Width or 36) * (normal.Scale or 1) * self.frameSize/36)
+					frame.Overlay:SetVertexColor(unpack(normal.Color or {1,1,1,1}))
+				else
+					frame.Overlay:SetTexture(nil)
+				end
+			end
+		end
+	end
+	
+	LBF:RegisterSkinCallback("gxCooldowns", skinChanged, addon)
+	LBF:Group("gxCooldowns")
+end
+
 addon.PLAYER_LOGIN = function(self)
 	self.playerGUID = UnitGUID("player")
 	self.frameSize = settings.frameSize
@@ -245,7 +385,8 @@ addon.PLAYER_LOGIN = function(self)
 	self.PLAYER_LOGIN = nil
 end
 
-local spellSchools = { -- We assume players can't use combined schools
+
+local spellSchools = { -- We assume players can't use combined schools [Frostfire bolt locks both schools however!]
 	[1] = {
 		Name = L["Physical"],
 		colorString = "|cffFFFF00"
@@ -266,6 +407,10 @@ local spellSchools = { -- We assume players can't use combined schools
 		Name = L["Frost"],
 		colorString = "|cff80FFFF"
 	},
+	[20] = {
+		Name = L["Frostfire"],
+		colorString = "|cffFF8000"
+	},
 	[32] = {
 		Name = L["Shadow"],
 		colorString = "|cff8080FF"
@@ -275,15 +420,8 @@ local spellSchools = { -- We assume players can't use combined schools
 		colorString = "|cffFF80FF"
 	}
 }
-local specialOccasions = {
-	[GetSpellInfo(14177)] = true,	-- Cold Blood
-	[GetSpellInfo(20216)] = true,	-- Divine Favor
-	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
-	[GetSpellInfo(5384)] = true,	-- Feign Death
-	[GetSpellInfo(14751)] = true,	-- Inner Focus
-	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
-	[GetSpellInfo(12043)] = true	-- Presence of Mind
-}
+
+local FD = GetSpellInfo(5384)	-- Feign Death can't be tracked through CLEU :(
 local sharedCooldowns = {
 	[GetSpellInfo(49376)] = GetSpellInfo(16979)	-- 'Feral Charge - Cat' refreshes 'Feral Charge - Bear'
 }
@@ -295,6 +433,15 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 			texture = GetSpellTexture(self.updateNext)
 			self:newCooldown(self.updateNext, startTime, duration, texture, "SPELL")
 			self.updateNext = nil
+		end
+	end
+	
+	if (self.updateSpecial) then
+		startTime, duration, enabled = GetSpellCooldown(self.updateSpecial)
+		if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+			texture = GetSpellTexture(self.updateSpecial)
+			self:newCooldown(self.updateSpecial, startTime, duration, texture, "SPELL")
+			self.updateSpecial = nil
 		end
 	end
 	
@@ -311,7 +458,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	end
 	
 	local unit, abilityName, interrupted = split(",", self.updateAbility)
-	if (specialOccasions[abilityName]) then
+	if (FD == abilityName) then
 		self.updateNext = abilityName
 		return
 	end
@@ -342,6 +489,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		if (interrupted and settings.enableOutput) then
 			local schoolName = spellSchools[self.spellSchoolID].Name
 			local colorString = spellSchools[self.spellSchoolID].colorString
+			
 			local result = colorString .. format(L["%s school is locked for %d seconds!"], schoolName, duration) .. "|r"
 			
 			self:print(result)
@@ -425,14 +573,11 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 		return
 	end
 	
-	local itemSpell
-	for item in next, settings.items do
-		itemSpell = GetItemSpell(item)
-		if (itemSpell == spellName) then
-			self.updateItem = item
-			
-			return
-		end
+	local item = settings.itemSpells[spellName]
+	if (item) then
+		self.updateItem = item
+		
+		return
 	end
 	
 	local slotID = spellNameToSlotID[spellName]
@@ -470,7 +615,7 @@ addon.SPELL_UPDATE_USABLE = function(self)
 			start, dur = GetPetActionCooldown(name)
 		end
 		
-		if (not start and not dur) then -- Calling Get'Something'Cooldown right after talent swap returns nil values
+		if (not start and not dur) then -- Calling Get'Something'Cooldown right after talent swap returns a nil value
 			self:dropCooldown(name)
 			return
 		end
@@ -491,13 +636,22 @@ addon.SPELL_UPDATE_USABLE = function(self)
 	end
 end
 
+local specialOccasions = {
+	[GetSpellInfo(14177)] = true,	-- Cold Blood
+	[GetSpellInfo(11129)] = true,	-- Combustion
+	[GetSpellInfo(20216)] = true,	-- Divine Favor
+	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
+	[GetSpellInfo(14751)] = true,	-- Inner Focus
+	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
+	[GetSpellInfo(12043)] = true	-- Presence of Mind
+}
 addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, _, _, _, ...)
-	if (event ~= "SPELL_CAST_START" or sourceGUID ~= self.playerGUID) then
-		return
+	local _, spellName, spellSchoolID = ...
+	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellName]) then
+		self.updateSpecial = spellName
+	elseif (event == "SPELL_CAST_START" and sourceGUID == self.playerGUID) then
+		self.spellSchoolID = spellSchoolID
 	end
-	
-	local _, _, spellSchoolID = ...
-	self.spellSchoolID = spellSchoolID
 end
 
 do
@@ -506,7 +660,11 @@ do
 		local stealth = class == "ROGUE" and GetSpellInfo(1784) or GetSpellInfo(5215)
 		addon:RegisterEvent("UPDATE_STEALTH")
 		addon.UPDATE_STEALTH = function(self)
-			self.updateAbility = "player," .. stealth
+			local startTime, duration, enabled = GetSpellCooldown(stealth)
+			if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+				texture = GetSpellTexture(stealth)
+				self:newCooldown(stealth, startTime, duration, texture, "SPELL")
+			end
 		end
 	end
 end

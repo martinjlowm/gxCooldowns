@@ -3,7 +3,7 @@
 ## Author: Guardix
 ## Version: 1.4
 ## Notes: Shows player, pet and item cooldowns as icons.
-## OptionalDeps: gxMedia
+## OptionalDeps: gxMedia, ButtonFacade
 
 Localization\enUS.lua
 Localization\deDE.lua

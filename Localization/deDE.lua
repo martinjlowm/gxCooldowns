@@ -11,6 +11,7 @@ L["Holy"] = "Holy"
 L["Fire"] = "Feuer"
 L["Nature"] = "Nature"
 L["Frost"] = "Frost"
+L["Frostfire"] = "Frostfire"
 L["Shadow"] = "Shadow"
 L["Arcane"] = "Arcane"
 
