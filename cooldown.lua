@@ -8,7 +8,6 @@ local gxMedia = gxMedia or {
 }
 
 local unpack = unpack
-local floor = floor
 local tinsert = table.insert
 local tremove = table.remove
 local split = strsplit
