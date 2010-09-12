@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: |cffffaa00gx|r|cff999999Cooldowns|r
 ## Author: Guardix
-## Version: 1.4
+## Version: 1.5
 ## Notes: Shows player, pet and item cooldowns as icons.
 ## OptionalDeps: gxMedia, ButtonFacade
 
