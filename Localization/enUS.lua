@@ -7,6 +7,7 @@ L["Holy"] = "Holy"
 L["Fire"] = "Fire"
 L["Nature"] = "Nature"
 L["Frost"] = "Frost"
+L["Frostfire"] = "Frostfire"
 L["Shadow"] = "Shadow"
 L["Arcane"] = "Arcane"
 
