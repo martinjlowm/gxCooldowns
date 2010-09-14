@@ -262,59 +262,23 @@ addon.dropCooldown = function(self, cooldownName)
 	return
 end
 
-local LBF = LibStub("LibButtonFacade",true)
-if (LBF) then
-	local skinTable, backdrop, cooldown, icon, normal
-	local skinChanged = function(self, skinName)
-		skinTable = LBF:GetSkins()
-		backdrop = skinTable[skinName].Backdrop
-		cooldown = skinTable[skinName].Cooldown
-		icon = skinTable[skinName].Icon
-		normal = skinTable[skinName].Normal
-		
-		self.styleDB.Backdrop = backdrop
-		self.styleDB.Cooldown = cooldown
-		self.styleDB.Icon = icon
-		self.styleDB.Overlay = normal
-		
-		for _, frame in next, self.active do
-			if (not backdrop.Hide) then
-				frame.Backdrop:SetTexture(backdrop.Texture)
-				frame.Backdrop:SetVertexColor(unpack(backdrop.Color or {1,1,1,1}))
-				frame.Backdrop:SetTexCoord(unpack(backdrop.TexCoords or {0,1,0,1}))
-				frame.Backdrop:SetBlendMode(backdrop.BlendMode or "BLEND")
-				frame.Backdrop:SetWidth((backdrop.Width or 36) * (backdrop.Scale or 1) * self.frameSize/36)
-				frame.Backdrop:SetHeight((backdrop.Height or 36) * (backdrop.Scale or 1) * self.frameSize/36)
-				frame.Backdrop:ClearAllPoints()
-				frame.Backdrop:SetPoint("CENTER", frame, "CENTER", backdrop.OffsetX or 0, backdrop.OffsetY or 0)
-			else
-				frame.Backdrop:SetTexture(nil)
-			end
+if (LibStub) then
+	local LBF = LibStub("LibButtonFacade",true)
+	if (LBF) then
+		local skinTable, backdrop, cooldown, icon, normal
+		local skinChanged = function(self, skinName)
+			skinTable = LBF:GetSkins()
+			backdrop = skinTable[skinName].Backdrop
+			cooldown = skinTable[skinName].Cooldown
+			icon = skinTable[skinName].Icon
+			normal = skinTable[skinName].Normal
 			
-			if (not cooldown.Hide) then
-				frame.Cooldown:SetHeight((cooldown.Height or 36) * (cooldown.Scale or 1) * self.frameSize/36)
-				frame.Cooldown:SetWidth((cooldown.Width or 36) * (cooldown.Scale or 1) * self.frameSize/36)
-			else
-				frame.Cooldown:Hide()
-			end
+			self.styleDB.Backdrop = backdrop
+			self.styleDB.Cooldown = cooldown
+			self.styleDB.Icon = icon
+			self.styleDB.Overlay = normal
 			
-			frame.Icon:SetWidth((icon.Width or 36) * (icon.Scale or 1) * self.frameSize/36)
-			frame.Icon:SetHeight((icon.Height or 36) * (icon.Scale or 1) * self.frameSize/36)
-			frame.Icon:SetTexCoord(unpack(icon.TexCoords or {0,1,0,1}))
-			
-			if (not normal.Hide) then
-				frame.Overlay:SetTexture(normal.Texture)
-				frame.Overlay:SetPoint("CENTER", frame, "CENTER", normal.OffsetX or 0, normal.OffsetY or 0)
-				frame.Overlay:SetHeight((normal.Height or 36) * (normal.Scale or 1) * self.frameSize/36)
-				frame.Overlay:SetWidth((normal.Width or 36) * (normal.Scale or 1) * self.frameSize/36)
-				frame.Overlay:SetVertexColor(unpack(normal.Color or {1,1,1,1}))
-			else
-				frame.Overlay:SetTexture(nil)
-			end
-		end
-		
-		if (#(self.pool) > 0) then
-			for _, frame in next, self.pool do
+			for _, frame in next, self.active do
 				if (not backdrop.Hide) then
 					frame.Backdrop:SetTexture(backdrop.Texture)
 					frame.Backdrop:SetVertexColor(unpack(backdrop.Color or {1,1,1,1}))
@@ -349,11 +313,49 @@ if (LBF) then
 					frame.Overlay:SetTexture(nil)
 				end
 			end
+			
+			if (#(self.pool) > 0) then
+				for _, frame in next, self.pool do
+					if (not backdrop.Hide) then
+						frame.Backdrop:SetTexture(backdrop.Texture)
+						frame.Backdrop:SetVertexColor(unpack(backdrop.Color or {1,1,1,1}))
+						frame.Backdrop:SetTexCoord(unpack(backdrop.TexCoords or {0,1,0,1}))
+						frame.Backdrop:SetBlendMode(backdrop.BlendMode or "BLEND")
+						frame.Backdrop:SetWidth((backdrop.Width or 36) * (backdrop.Scale or 1) * self.frameSize/36)
+						frame.Backdrop:SetHeight((backdrop.Height or 36) * (backdrop.Scale or 1) * self.frameSize/36)
+						frame.Backdrop:ClearAllPoints()
+						frame.Backdrop:SetPoint("CENTER", frame, "CENTER", backdrop.OffsetX or 0, backdrop.OffsetY or 0)
+					else
+						frame.Backdrop:SetTexture(nil)
+					end
+					
+					if (not cooldown.Hide) then
+						frame.Cooldown:SetHeight((cooldown.Height or 36) * (cooldown.Scale or 1) * self.frameSize/36)
+						frame.Cooldown:SetWidth((cooldown.Width or 36) * (cooldown.Scale or 1) * self.frameSize/36)
+					else
+						frame.Cooldown:Hide()
+					end
+					
+					frame.Icon:SetWidth((icon.Width or 36) * (icon.Scale or 1) * self.frameSize/36)
+					frame.Icon:SetHeight((icon.Height or 36) * (icon.Scale or 1) * self.frameSize/36)
+					frame.Icon:SetTexCoord(unpack(icon.TexCoords or {0,1,0,1}))
+					
+					if (not normal.Hide) then
+						frame.Overlay:SetTexture(normal.Texture)
+						frame.Overlay:SetPoint("CENTER", frame, "CENTER", normal.OffsetX or 0, normal.OffsetY or 0)
+						frame.Overlay:SetHeight((normal.Height or 36) * (normal.Scale or 1) * self.frameSize/36)
+						frame.Overlay:SetWidth((normal.Width or 36) * (normal.Scale or 1) * self.frameSize/36)
+						frame.Overlay:SetVertexColor(unpack(normal.Color or {1,1,1,1}))
+					else
+						frame.Overlay:SetTexture(nil)
+					end
+				end
+			end
 		end
+		
+		LBF:RegisterSkinCallback("gxCooldowns", skinChanged, addon)
+		LBF:Group("gxCooldowns")
 	end
-	
-	LBF:RegisterSkinCallback("gxCooldowns", skinChanged, addon)
-	LBF:Group("gxCooldowns")
 end
 
 addon.PLAYER_LOGIN = function(self)
