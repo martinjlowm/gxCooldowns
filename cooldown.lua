@@ -640,7 +640,6 @@ end
 local specialOccasions = {
 	[GetSpellInfo(14177)] = true,	-- Cold Blood
 	[GetSpellInfo(11129)] = true,	-- Combustion
-	[GetSpellInfo(20216)] = true,	-- Divine Favor
 	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
 	[GetSpellInfo(14751)] = true,	-- Inner Focus
 	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
