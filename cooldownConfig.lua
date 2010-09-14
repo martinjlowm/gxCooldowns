@@ -16,7 +16,8 @@ settings.itemSpells = {
 	[GetSpellInfo(53762)] = 40093,	-- 'Indestructible'			Indestructible Potion
 	[GetSpellInfo(53908)] = 40211,	-- 'Speed'					Potion of Speed
 	[GetSpellInfo(53909)] = 40212,	-- 'Wild Magic'				Potion of Wild Magic
-	[GetSpellInfo(42987)] = 33312	-- 'Replenish Mana'			Mana Sapphire
+	[GetSpellInfo(42987)] = 33312,	-- 'Replenish Mana'			Mana Sapphire
+	[GetSpellInfo(75495)] = 54589	-- 'Eyes of Twilight'		Glowing Twilight Scale
 }
 
 settings.frameSize = 36
