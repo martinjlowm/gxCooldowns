@@ -125,7 +125,6 @@ local enchantIDToSpellName = {
 local specialOccasions = {
 	[GetSpellInfo(14177)] = true,	-- Cold Blood
 	[GetSpellInfo(11129)] = true,	-- Combustion
-	[GetSpellInfo(20216)] = true,	-- Divine Favor
 	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
 	[GetSpellInfo(14751)] = true,	-- Inner Focus
 	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
@@ -431,7 +430,7 @@ do
 		local _, _, offset, numSpellsInTab = GetSpellTabInfo(GetNumSpellTabs())
 		local numSpells = offset + numSpellsInTab
 		for spellNum = 1, numSpells do
-			spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
+			spellName = GetSpellBookItemName(spellNum, BOOKTYPE_SPELL)
 			startTime, duration, enabled = GetSpellCooldown(spellName)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 				self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL", true)
