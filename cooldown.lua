@@ -1,436 +1,504 @@
-local _, settings = ...
-local L = settings.L
+local aName, aTable = ...
 
-local gxMedia = gxMedia or {
-	buttonOverlay = [=[Interface\Buttons\UI-Quickslot2]=],
-	edgeFile = [=[Interface\Buttons\UI-EmptySlot]=],
-	font = [=[Fonts\FRIZQT__.TTF]=]
-}
+local LBF, buttonGroup
+local Shiner = LibStub("tekShiner")
 
 local unpack = unpack
 local tinsert = table.insert
 local tremove = table.remove
-local split = strsplit
-local find = string.find
-local format = string.format
-local lower = string.lower
+local split = string.split
 local match = string.match
 local select = select
+local AutoCastShine_AutoCastStart = AutoCastShine_AutoCastStart
 local GetSpellCooldown = GetSpellCooldown
 local GetSpellTexture = GetSpellTexture
 local GetItemCooldown = GetItemCooldown
+local GetInventoryItemCooldown = GetInventoryItemCooldown
 local GetPetActionCooldown = GetPetActionCooldown
 
-local addon = CreateFrame("Frame", nil, UIParent)
-addon:SetHeight(1)
-addon:SetWidth(1)
-addon:SetFrameLevel(2)
-addon:RegisterEvent("PLAYER_LOGIN")
-addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-addon:RegisterEvent("BAG_UPDATE_COOLDOWN")
-addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-addon:RegisterEvent("UNIT_SPELLCAST_FAILED_QUIET")
-addon:RegisterEvent("SPELL_UPDATE_USABLE")
-addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-addon:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-local style
-if (IsAddOnLoaded("gxMedia")) then
-	style = {
-		Backdrop = {
-			Texture = gxMedia.edgeFile,
-		},
-		Cooldown = {
-			Height = 36,
-			Width = 36
-		},
-		Icon = {
-			Height = 34,
-			Width = 34,
-			TexCoords = {.07, .93, .07, .93}
-		},
-		Overlay = {
-			Height = 44,
-			Width = 44,
-			Texture = gxMedia.buttonOverlay,
-			TexCoords = {0, 1, .02, 1},
-			Color = {.6, .6, .6, 1}
-		}
-	}
-else
-	style = {
-		Backdrop = {
-			Width = 34,
-			Height = 35,
-			OffsetY = -0.5,
-			Texture = gxMedia.edgeFile,
-			TexCoords = {0.2,0.8,0.2,0.8}
-		},
-		Cooldown = {
-			Height = 36,
-			Width = 36
-		},
-		Icon = {
-			Height = 36,
-			Width = 36
-		},
-		Overlay = {
-			Height = 66,
-			Width = 66,
-			OffsetY = -1,
-			Texture = gxMedia.buttonOverlay
-		}
-	}
-end
-addon.styleDB = style
-addon.active = {}
-addon.pool = {}
-
-local createOutput = function(self)
-	local output = self:CreateFontString(nil, "OVERLAY")
-	output:SetFont(gxMedia.font, 30, "OUTLINE")
-	output:SetPoint("BOTTOM", self, "TOP")
-	self.output = output
-	
-	return output
-end
-
-addon.print = function(self, message)
-	local IsAddOnLoaded = IsAddOnLoaded
-	local method = lower(settings.outputMethod)
-	
-	if (method == "uierrorsframe") then
-		UIErrorsFrame:AddMessage(message)
-	elseif (method == "sct" and IsAddOnLoaded("sct") and SCT) then
-		SCT:DisplayMessage(message, {r = 1, g = 1, b = 1})
-	elseif (method == "msbt" and IsAddOnLoaded("MikScrollingBattleText") and MikSBT) then
-		MikSBT.DisplayMessage(message)
-	elseif (method == "standard") then
-		local output = self.output or createOutput(self)
-		output:SetText(message)
-		output:SetAlpha(1)
-		self.duration = settings.outputTime
-		self:SetScript("OnUpdate", function(self, elapsed)
-			local duration = self.duration - elapsed
-			if (duration <= 0) then
-				self.output:SetText()
-				self.output:SetPoint("CENTER")
-				self:SetScript("OnUpdate", nil)
-			elseif (duration >= 0) then
-				local alpha = duration / settings.outputTime
-				self.output:SetAlpha(alpha)
-				self.output:ClearAllPoints()
-				self.output:SetPoint("BOTTOM", self, "TOP", 0, -25 * duration + 100)
-			end
-			
-			self.duration = duration
-		end)
-	else
-		print("|cffffaa00gx|r|cff999999Cooldowns:|r", message)
-	end
-end
-
-local loadFrame = function(self)
-	if (#(self.pool) > 0) then
-		return tremove(self.pool, 1)
-	end
-	
-	local frame = CreateFrame("Frame", nil, self)
-	frame:SetWidth(self.frameSize)
-	frame:SetHeight(self.frameSize)
-	frame:SetFrameLevel(self:GetFrameLevel() - 2)
-	frame:Hide()
-	frame.parent = self
-	
-	local backdrop = frame:CreateTexture(nil, "BACKGROUND")
-	backdrop:SetTexture(self.styleDB.Backdrop.Texture)
-	backdrop:SetVertexColor(unpack(self.styleDB.Backdrop.Color or {1,1,1,1}))
-	backdrop:SetTexCoord(unpack(self.styleDB.Backdrop.TexCoords or {0,1,0,1}))
-	backdrop:SetBlendMode(self.styleDB.Backdrop.BlendMode or "BLEND")
-	backdrop:SetWidth((self.styleDB.Backdrop.Width or 36) * (self.styleDB.Backdrop.Scale or 1) * self.frameSize/36)
-	backdrop:SetHeight((self.styleDB.Backdrop.Height or 36) * (self.styleDB.Backdrop.Scale or 1) * self.frameSize/36)
-	backdrop:SetPoint("CENTER", frame, "CENTER", self.styleDB.Backdrop.OffsetX or 0, self.styleDB.Backdrop.OffsetY or 0)
-	
-	local icon = frame:CreateTexture(nil, "ARTWORK")
-	icon:SetTexCoord(unpack(self.styleDB.Icon.TexCoords or {0,1,0,1}))
-	icon:SetWidth((self.styleDB.Icon.Width or 36) * (self.styleDB.Icon.Scale or 1) * self.frameSize/36)
-	icon:SetHeight((self.styleDB.Icon.Height or 36) * (self.styleDB.Icon.Scale or 1) * self.frameSize/36)
-	icon:SetPoint("CENTER")
-	
-	local cd = CreateFrame("Cooldown", nil, frame)
-	cd:SetPoint("CENTER")
-	cd:SetWidth((self.styleDB.Cooldown.Width or 36) * (self.styleDB.Cooldown.Scale or 1) * self.frameSize/36)
-	cd:SetHeight((self.styleDB.Cooldown.Height or 36) * (self.styleDB.Cooldown.Scale or 1) * self.frameSize/36)
-	
-	local overlay = frame:CreateTexture(nil, "OVERLAY")
-	overlay:SetTexture(self.styleDB.Overlay.Texture)
-	overlay:SetPoint("CENTER", frame, "CENTER", self.styleDB.Overlay.OffsetX or 0, self.styleDB.Overlay.OffsetY or 0)
-	overlay:SetHeight((self.styleDB.Overlay.Height or 36) * (self.styleDB.Overlay.Scale or 1) * self.frameSize/36)
-	overlay:SetWidth((self.styleDB.Overlay.Width or 36) * (self.styleDB.Overlay.Scale or 1) * self.frameSize/36)
-	overlay:SetVertexColor(unpack(self.styleDB.Overlay.Color or {1,1,1,1}))
-	
-	frame:SetScript("OnUpdate", function(self, elapsed)
-		if (elapsed > 3 and self.elapseFix) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
-			elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
-			self.elapseFix = nil
-		end
-		
-		local duration = self.duration - elapsed
-		if (duration <= 0) then
-			self.parent:dropCooldown(self.name)
-			
-			return
-		end
-		
-		self.duration = duration
-	end)
-	
-	frame.Cooldown = cd
-	frame.Icon = icon
-	frame.Overlay = overlay
-	frame.Backdrop = backdrop
-	
-	return frame
-end
-
-local repositionFrames = function(self)
-	local gap = settings.gap
-	
-	local numActive, prev = 0
-	for _, frame in next, self.active do
-		frame:ClearAllPoints()
-		if (settings.growHorizontal) then
-			if (prev) then
-				frame:SetPoint("LEFT", prev, "RIGHT", gap, 0)
-			else
-				frame:SetPoint("LEFT", self, "LEFT")
-			end
-		else
-			if (prev) then
-				frame:SetPoint("BOTTOM", prev, "TOP", 0, gap)
-			else
-				frame:SetPoint("BOTTOM", self, "BOTTOM")
-			end
-		end
-		
-		numActive = numActive + 1
-		prev = frame
-	end
-	
-	if (settings.growHorizontal) then
-		self:SetWidth(numActive * (self.frameSize + gap) - gap)
-	else
-		self:SetHeight(numActive * (self.frameSize + gap) - gap)
-	end
-end
-
-addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, type, elapseFix)
-	if (self.active[cooldownName]) then
-		return
-	end
-	
-	local frame = loadFrame(self)
-	
-	local duration = seconds - (GetTime() - startTime)
-	frame.start = startTime
-	frame.elapseFix = elapseFix
-	frame.duration = duration
-	frame.max = seconds
-	
-	frame.name = cooldownName
-	frame.type = type
-	
-	frame.Icon:SetTexture(tex)
-	frame.Cooldown:SetCooldown(startTime, seconds)
-	frame:Show()
-	
-	self.active[cooldownName] = frame
-	
-	repositionFrames(self)
-end
-
-addon.dropCooldown = function(self, cooldownName)
-	local frame = self.active[cooldownName]
-	if (frame) then
-		frame:Hide()
-		tinsert(self.pool, frame)
-		self.active[cooldownName] = nil
-		
-		repositionFrames(self)
-		return true
-	end
-	
-	return
-end
-
-if (LibStub) then
-	local LBF = LibStub("LibButtonFacade",true)
-	if (LBF) then
-		local skinTable, backdrop, cooldown, icon, normal
-		local skinChanged = function(self, skinName)
-			skinTable = LBF:GetSkins()
-			backdrop = skinTable[skinName].Backdrop
-			cooldown = skinTable[skinName].Cooldown
-			icon = skinTable[skinName].Icon
-			normal = skinTable[skinName].Normal
-			
-			self.styleDB.Backdrop = backdrop
-			self.styleDB.Cooldown = cooldown
-			self.styleDB.Icon = icon
-			self.styleDB.Overlay = normal
-			
-			for _, frame in next, self.active do
-				if (not backdrop.Hide) then
-					frame.Backdrop:SetTexture(backdrop.Texture)
-					frame.Backdrop:SetVertexColor(unpack(backdrop.Color or {1,1,1,1}))
-					frame.Backdrop:SetTexCoord(unpack(backdrop.TexCoords or {0,1,0,1}))
-					frame.Backdrop:SetBlendMode(backdrop.BlendMode or "BLEND")
-					frame.Backdrop:SetWidth((backdrop.Width or 36) * (backdrop.Scale or 1) * self.frameSize/36)
-					frame.Backdrop:SetHeight((backdrop.Height or 36) * (backdrop.Scale or 1) * self.frameSize/36)
-					frame.Backdrop:ClearAllPoints()
-					frame.Backdrop:SetPoint("CENTER", frame, "CENTER", backdrop.OffsetX or 0, backdrop.OffsetY or 0)
-				else
-					frame.Backdrop:SetTexture(nil)
-				end
-				
-				if (not cooldown.Hide) then
-					frame.Cooldown:SetHeight((cooldown.Height or 36) * (cooldown.Scale or 1) * self.frameSize/36)
-					frame.Cooldown:SetWidth((cooldown.Width or 36) * (cooldown.Scale or 1) * self.frameSize/36)
-				else
-					frame.Cooldown:Hide()
-				end
-				
-				frame.Icon:SetWidth((icon.Width or 36) * (icon.Scale or 1) * self.frameSize/36)
-				frame.Icon:SetHeight((icon.Height or 36) * (icon.Scale or 1) * self.frameSize/36)
-				frame.Icon:SetTexCoord(unpack(icon.TexCoords or {0,1,0,1}))
-				
-				if (not normal.Hide) then
-					frame.Overlay:SetTexture(normal.Texture)
-					frame.Overlay:SetPoint("CENTER", frame, "CENTER", normal.OffsetX or 0, normal.OffsetY or 0)
-					frame.Overlay:SetHeight((normal.Height or 36) * (normal.Scale or 1) * self.frameSize/36)
-					frame.Overlay:SetWidth((normal.Width or 36) * (normal.Scale or 1) * self.frameSize/36)
-					frame.Overlay:SetVertexColor(unpack(normal.Color or {1,1,1,1}))
-				else
-					frame.Overlay:SetTexture(nil)
-				end
-			end
-			
-			if (#(self.pool) > 0) then
-				for _, frame in next, self.pool do
-					if (not backdrop.Hide) then
-						frame.Backdrop:SetTexture(backdrop.Texture)
-						frame.Backdrop:SetVertexColor(unpack(backdrop.Color or {1,1,1,1}))
-						frame.Backdrop:SetTexCoord(unpack(backdrop.TexCoords or {0,1,0,1}))
-						frame.Backdrop:SetBlendMode(backdrop.BlendMode or "BLEND")
-						frame.Backdrop:SetWidth((backdrop.Width or 36) * (backdrop.Scale or 1) * self.frameSize/36)
-						frame.Backdrop:SetHeight((backdrop.Height or 36) * (backdrop.Scale or 1) * self.frameSize/36)
-						frame.Backdrop:ClearAllPoints()
-						frame.Backdrop:SetPoint("CENTER", frame, "CENTER", backdrop.OffsetX or 0, backdrop.OffsetY or 0)
-					else
-						frame.Backdrop:SetTexture(nil)
-					end
-					
-					if (not cooldown.Hide) then
-						frame.Cooldown:SetHeight((cooldown.Height or 36) * (cooldown.Scale or 1) * self.frameSize/36)
-						frame.Cooldown:SetWidth((cooldown.Width or 36) * (cooldown.Scale or 1) * self.frameSize/36)
-					else
-						frame.Cooldown:Hide()
-					end
-					
-					frame.Icon:SetWidth((icon.Width or 36) * (icon.Scale or 1) * self.frameSize/36)
-					frame.Icon:SetHeight((icon.Height or 36) * (icon.Scale or 1) * self.frameSize/36)
-					frame.Icon:SetTexCoord(unpack(icon.TexCoords or {0,1,0,1}))
-					
-					if (not normal.Hide) then
-						frame.Overlay:SetTexture(normal.Texture)
-						frame.Overlay:SetPoint("CENTER", frame, "CENTER", normal.OffsetX or 0, normal.OffsetY or 0)
-						frame.Overlay:SetHeight((normal.Height or 36) * (normal.Scale or 1) * self.frameSize/36)
-						frame.Overlay:SetWidth((normal.Width or 36) * (normal.Scale or 1) * self.frameSize/36)
-						frame.Overlay:SetVertexColor(unpack(normal.Color or {1,1,1,1}))
-					else
-						frame.Overlay:SetTexture(nil)
-					end
-				end
-			end
-		end
-		
-		LBF:RegisterSkinCallback("gxCooldowns", skinChanged, addon)
-		LBF:Group("gxCooldowns")
-	end
-end
-
-addon.PLAYER_LOGIN = function(self)
-	self.playerGUID = UnitGUID("player")
-	self.frameSize = settings.frameSize
-	
-	self:SetPoint(settings.point, settings.relFrame, settings.relPoint, settings.xOffset, settings.yOffset)
-	
-	-- Scan when we reload the UI or log in w/e
-	local _, _, offset, numSpellsInTab = GetSpellTabInfo(GetNumSpellTabs())
-	local numSpells = offset + numSpellsInTab
-	
-	local spellName, startTime, duration, enabled
-	for spellNum = 1, numSpells do
-		spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
-		startTime, duration, enabled = GetSpellCooldown(spellName)
-		if (enabled == 1 and duration > settings.minDuration) then
-			self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL", true)
-		end
-	end
-	
-	-- Add equipped items to our enchant list, if they have enchants of our wish.
-	for i = 1, 19 do
-		self:PLAYER_EQUIPMENT_CHANGED(i, true)
-	end
-	
-	self:UnregisterEvent("PLAYER_LOGIN")
-	self.PLAYER_LOGIN = nil
-end
-
-
-local spellSchools = { -- We assume players can't use combined schools [Frostfire bolt locks both schools however!]
-	[1] = {
-		Name = L["Physical"],
-		colorString = "|cffFFFF00"
+-- We limit the schools to double schools for now. (Only frostfire is available to players atm.) http://www.wowwiki.com/API_COMBAT_LOG_EVENT
+local spellSchoolColors = {
+	[SCHOOL_MASK_PHYSICAL] = {1,1,0},				-- Physical		1
+	[SCHOOL_MASK_HOLY] = {1,.9,.5},					-- Holy			2
+	[SCHOOL_MASK_HOLY + SCHOOL_MASK_PHYSICAL] = {	-- Holystrike	3
+		{1,.9,.5},
+		{1,1,0}
 	},
-	[2] = {
-		Name = L["Holy"],
-		colorString = "|cffFFE680"
+	[SCHOOL_MASK_FIRE] = {1,.5,0},					-- Fire			4
+	[SCHOOL_MASK_FIRE + SCHOOL_MASK_PHYSICAL] = {	-- Flamestrike	5
+		{1,.5,0},
+		{1,1,0}
 	},
-	[4] = {
-		Name = L["Fire"],
-		colorString = "|cffFF8000"
+	[SCHOOL_MASK_HOLY + SCHOOL_MASK_FIRE] = {		-- Holyfire		6
+		{1,.9,.5},
+		{1,.5,0}
 	},
-	[8] = {
-		Name = L["Nature"],
-		colorString = "|cff4DFF4D"
+	[SCHOOL_MASK_NATURE] = {.3,1,.3},				-- Nature		8
+	[SCHOOL_MASK_NATURE + SCHOOL_MASK_PHYSICAL] = {	-- Stormstrike	9
+		{.3,1,.3},
+		{1,1,0}
 	},
-	[16] = {
-		Name = L["Frost"],
-		colorString = "|cff80FFFF"
+	[SCHOOL_MASK_NATURE + SCHOOL_MASK_HOLY] = {		-- Holystorm	10
+		{.3,1,.3},
+		{1,.9,.5}
 	},
-	[20] = {
-		Name = L["Frostfire"],
-		colorString = "|cffFF8000"
+	[SCHOOL_MASK_NATURE + SCHOOL_MASK_FIRE] = {		-- Firestorm	12
+		{.3,1,.3},
+		{1,.5,0}
 	},
-	[32] = {
-		Name = L["Shadow"],
-		colorString = "|cff8080FF"
+	[SCHOOL_MASK_FROST] = {.5,1,1},					-- Frost		16
+	[SCHOOL_MASK_FROST + SCHOOL_MASK_PHYSICAL] = {	-- Froststrike	17
+		{.5,1,1},
+		{1,1,0}
 	},
-	[64] = {
-		Name = L["Arcane"],
-		colorString = "|cffFF80FF"
-	}
+	[SCHOOL_MASK_FROST + SCHOOL_MASK_HOLY] = {		-- Holyfrost	18
+		{.5,1,1},
+		{1,.9,.5}
+	},
+	[SCHOOL_MASK_FROST + SCHOOL_MASK_FIRE] = {		-- Frostfire	20
+		{.5,1,1},
+		{1,.5,0}
+	},
+	[SCHOOL_MASK_FROST + SCHOOL_MASK_NATURE] = {	-- Froststorm	24
+		{.5,1,1},
+		{.3,1,.3}
+	},
+	[SCHOOL_MASK_SHADOW] = {.5,.5,1},				-- Shadow		32
+	[SCHOOL_MASK_SHADOW + SCHOOL_MASK_PHYSICAL] = {	-- Shadowstrike	33
+		{.5,.5,1},
+		{1,1,0}
+	},
+	[SCHOOL_MASK_SHADOW + SCHOOL_MASK_HOLY] = {		-- Twilight		34
+		{.5,.5,1},
+		{1,.9,.5}
+	},
+	[SCHOOL_MASK_SHADOW + SCHOOL_MASK_FIRE] = {		-- Shadowflame	36
+		{.5,.5,1},
+		{1,.5,0}
+	},
+	[SCHOOL_MASK_SHADOW + SCHOOL_MASK_NATURE] = {	-- Plague		40
+		{.5,.5,1},
+		{.3,1,.3}
+	},
+	[SCHOOL_MASK_SHADOW + SCHOOL_MASK_FROST] = {	-- Shadowfrost	48
+		{.5,.5,1},
+		{.5,1,1}
+	},
+	[SCHOOL_MASK_ARCANE] = {1,.5,1},				-- Arcane		64
+	[SCHOOL_MASK_ARCANE + SCHOOL_MASK_PHYSICAL] = {	-- Spellstrike	65
+		{1,.5,1},
+		{1,1,0}
+	},
+	[SCHOOL_MASK_ARCANE + SCHOOL_MASK_HOLY] = {		-- Divine		66
+		{1,.5,1},
+		{1,.9,.5}
+	},
+	[SCHOOL_MASK_ARCANE + SCHOOL_MASK_FIRE] = {		-- Spellfire	68
+		{1,.5,1},
+		{1,.5,0}
+	},
+	[SCHOOL_MASK_ARCANE + SCHOOL_MASK_NATURE] = {	-- Spellstorm	72
+		{1,.5,1},
+		{.3,1,.3}
+	},
+	[SCHOOL_MASK_ARCANE + SCHOOL_MASK_FROST] = {	-- Spellfrost	80
+		{1,.5,1},
+		{.5,1,1}
+	},
+	[SCHOOL_MASK_ARCANE + SCHOOL_MASK_SHADOW] = {	-- Spellshadow	80
+		{1,.5,1},
+		{.5,.5,1}
+	},
 }
-
 local FD = GetSpellInfo(5384)	-- Feign Death can't be tracked through CLEU :(
 local sharedCooldowns = {
 	[GetSpellInfo(49376)] = GetSpellInfo(16979)	-- 'Feral Charge - Cat' refreshes 'Feral Charge - Bear'
 }
+local spellNameToSlotID = {}
+local enchantIDToSpellName = {
+	[3601] = GetSpellInfo(54793),	-- Frag Belt
+	[3603] = GetSpellInfo(54998),	-- Hand-Mounted Pyro Rocket
+	[3604] = GetSpellInfo(54999),	-- Hyperspeed Accelerators
+	[3606] = GetSpellInfo(55016),	-- Nitro Boosts
+	[3859] = GetSpellInfo(63765)	-- Springy Arachnoweave
+}
+local specialOccasions = {
+	[GetSpellInfo(14177)] = true,	-- Cold Blood
+	[GetSpellInfo(11129)] = true,	-- Combustion
+	[GetSpellInfo(20216)] = true,	-- Divine Favor
+	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
+	[GetSpellInfo(14751)] = true,	-- Inner Focus
+	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
+	[GetSpellInfo(12043)] = true	-- Presence of Mind
+}
+
+local addon = CreateFrame("Frame", aName .. "Anchor", UIParent)
+addon:SetClampedToScreen(true)
+addon:RegisterEvent("BAG_UPDATE_COOLDOWN")
+addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+addon:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+addon:RegisterEvent("PLAYER_LOGIN")
+addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+addon:RegisterEvent("SPELL_UPDATE_USABLE")
+addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+addon.active = {}
+addon.pool = {}
+
+aTable.growthValues = {
+	["Down"] = {
+		point = "TOP",
+		horizontal = false
+	},
+	["Left"] = {
+		point = "RIGHT",
+		horizontal = true
+	},
+	["Left and Right"] = {
+		point = "CENTER",
+		horizontal = true
+	},
+	["Right"] = {
+		point = "LEFT",
+		horizontal = true
+	},
+	["Up"] = {
+		point = "BOTTOM",
+		horizontal = false
+	},
+	["Up and Down"] = {
+		point = "CENTER",
+		horizontal = false
+	}
+}
+
+local tex = addon:CreateTexture(aName .. "AnchorTexture", "OVERLAY")
+tex:SetAllPoints(addon)
+tex:SetTexture(.6, .6, .6, .6)
+tex:Hide()
+addon.anchor = tex
+
+local repositionFrames
+do
+	local frameNum = 1
+	local loadFrame = function(self)
+		if (#(self.pool) > 0) then
+			return tremove(self.pool, 1)
+		end
+		
+		local name = aName .. "Icon" .. frameNum
+		
+		local frame = CreateFrame("Button", name, self, "ActionButtonTemplate")
+		frame:EnableMouse(nil)
+		frame:SetFrameStrata("LOW")
+		frame:Hide()
+		frame.parent = self
+		
+		local model = Shiner.new(frame)
+		for _, sparkle in next, model.sparkles do
+			sparkle:SetHeight(sparkle:GetHeight() * 3)
+			sparkle:SetWidth(sparkle:GetWidth() * 3)
+		end
+		model:SetAllPoints(frame)
+		model:Hide()
+		
+		frame:SetScript("OnUpdate", function(self, elapsed)
+			if (elapsed > 3) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
+				elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
+				self.elapseFix = nil
+			end
+			
+			local duration = self.duration - elapsed
+			if (duration <= 0) then
+				self.parent:dropCooldown(self.name)
+				
+				return
+			end
+			
+			self.duration = duration
+		end)
+		
+		frame.Cooldown = _G[name.."Cooldown"]
+		frame.Icon = _G[name.."Icon"]
+		frame.Model = model
+		
+		if (LBF) then
+			buttonGroup:AddButton(frame)
+		end
+		
+		frameNum = frameNum + 1
+		
+		return frame
+	end
+	
+	repositionFrames = function(self)
+		local gap = gxCooldownsDB.gap
+		
+		local point, rel, anchor, x, y
+		local numActive, prev = 0
+		for _, frame in next, self.active do
+			frame:ClearAllPoints()
+			if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
+				if (prev) then
+					rel, anchor, x = prev, "RIGHT", gap
+				else
+					rel, anchor, x = self, "LEFT", 0
+				end
+				point, y = "LEFT", 0
+			else
+				if (prev) then
+					rel, anchor, y = prev, "TOP", gap
+				else
+					rel, anchor, y = self, "BOTTOM", 0
+				end
+				point, x = "BOTTOM", 0
+			end
+			
+			frame:SetPoint(point, rel, anchor, x, y)
+			
+			numActive = numActive + 1
+			prev = frame
+		end
+		
+		local length = numActive * (36 + gap) - gap
+		if (length < 36) then
+			length = 36
+		end
+		
+		if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
+			self:SetWidth(length)
+		else
+			self:SetHeight(length)
+		end
+	end
+	
+	addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, aType, elapseFix)
+		if (self.active[cooldownName]) then
+			return
+		end
+		
+		local frame = loadFrame(self)
+		
+		local duration = seconds - (GetTime() - startTime)
+		frame.start = startTime
+		frame.elapseFix = elapseFix
+		frame.duration = duration
+		frame.max = seconds
+		
+		frame.name = cooldownName
+		frame.type = aType
+		
+		frame.Icon:SetTexture(tex)
+		frame.Cooldown:SetCooldown(startTime, seconds)
+		frame:Show()
+		
+		if (self.interrupted) then
+			frame.Model:Show()
+			if (type(spellSchoolColors[self.spellSchoolID][1]) == "table") then
+				local i = 1
+				for _, sparkle in next, frame.Model.sparkles do
+					sparkle:SetVertexColor(unpack(spellSchoolColors[self.spellSchoolID][i]))
+					
+					if (i == 1) then
+						i = i + 1
+					else
+						i = i - 1
+					end
+				end
+			else
+				for _, sparkle in next, frame.Model.sparkles do
+					sparkle:SetVertexColor(unpack(spellSchoolColors[self.spellSchoolID]))
+				end
+			end
+			
+			self.interrupted = nil
+		end
+		
+		self.active[cooldownName] = frame
+		
+		repositionFrames(self)
+	end
+	
+	addon.dropCooldown = function(self, cooldownName)
+		local frame = self.active[cooldownName]
+		if (frame) then
+			frame:Hide()
+			tinsert(self.pool, frame)
+			self.active[cooldownName] = nil
+			
+			if (frame.Model:IsShown()) then
+				frame.Model:Hide()
+			end
+			
+			repositionFrames(self)
+			return true
+		end
+		
+		return
+	end
+end
+
+aTable.updateFrames = function(growth)
+	gxCooldownsDB.growth = growth
+	repositionFrames(addon)
+	
+	addon:ClearAllPoints()
+	addon:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
+end
+
+aTable.setScale = function(scale)
+	gxCooldownsDB.scale = scale
+	addon:SetScale(scale)
+end
+
+aTable.setGap = function(gap)
+	gxCooldownsDB.gap = gap
+	repositionFrames(addon)
+end
+
+aTable.setPosition = function(x, y)
+	gxCooldownsDB.xOffset, gxCooldownsDB.yOffset = x, y
+	
+	addon:ClearAllPoints()
+	addon:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
+end
+
+do
+	local x, y
+	local coords = {[1] = {}, [2] = {}, [3] = {}}
+	local startMoving = function(self, button)
+		if (button == "RightButton") then
+			aTable.locked = true
+			aTable.toggleLock()
+			return
+		end
+		
+		_, _, _, x, y = self:GetPoint()
+		coords[1].x = x
+		coords[1].y = y
+		
+		self:StartMoving()
+		
+		_, _, _, x, y = self:GetPoint()
+		coords[2].x = x
+		coords[2].y = y
+	end
+
+	local stopMoving = function(self, button)
+		if (button == "RightButton") then
+			return
+		end
+		
+		_, _, _, x, y = self:GetPoint()
+		coords[3].x = x
+		coords[3].y = y
+		self:StopMovingOrSizing()
+		
+		x = floor((coords[3].x - coords[2].x) + coords[1].x)
+		y = floor((coords[3].y - coords[2].y) + coords[1].y)
+		
+		gxCooldownsDB.xOffset = x
+		gxCooldownsDB.yOffset = y
+		
+		self:ClearAllPoints()
+		self:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", x, y)
+	end
+	
+	aTable.toggleLock = function(callbackLock, callbackXY)
+		if (aTable.locked) then
+			addon.anchor:Hide()
+			addon:EnableMouse(nil)
+			addon:SetMovable(nil)
+			
+			addon:SetScript("OnMouseDown", nil)
+			addon:SetScript("OnMouseUp", nil)
+		else
+			addon.anchor:Show()
+			addon:EnableMouse(true)
+			addon:SetMovable(true)
+			
+			addon:SetScript("OnMouseDown", startMoving)
+			addon:HookScript("OnMouseDown", callbackLock)
+			addon:SetScript("OnMouseUp", stopMoving)
+			addon:HookScript("OnMouseUp", callbackXY)
+		end
+	end
+end
+
+do
+	local scanCooldowns = function(self)
+		local spellName, startTime, duration, enabled, texture
+		
+		local _, _, offset, numSpellsInTab = GetSpellTabInfo(GetNumSpellTabs())
+		local numSpells = offset + numSpellsInTab
+		for spellNum = 1, numSpells do
+			spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
+			startTime, duration, enabled = GetSpellCooldown(spellName)
+			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
+				self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL", true)
+			end
+		end
+		
+		for _, item in next, gxCooldownsDB.items do
+			startTime, duration, enabled = GetItemCooldown(item)
+			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
+				texture = select(10, GetItemInfo(item))
+				self:newCooldown(item, startTime, duration, texture, "ITEM", true)
+			elseif (enabled == 0 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
+				self.queuedItem = self.updateItem
+			end
+		end
+		
+		for _, id in next, spellNameToSlotID do
+			startTime, duration, enabled = GetInventoryItemCooldown("player", id)
+			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
+				texture = GetInventoryItemTexture("player", id)
+				self:newCooldown(id, startTime, duration, texture, "INVENTORY", true)
+			end
+		end
+	end
+	
+	addon.PLAYER_LOGIN = function(self, addon)
+		aTable.setupConfiguration()
+		
+		self:SetHeight(36)
+		self:SetWidth(36)
+		self:SetScale(gxCooldownsDB.scale)
+		self:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
+		
+		if (LibStub) then
+			LBF = LibStub("LibButtonFacade",true)
+			if (LBF) then
+				local skinChanged = function(self, skinName, gloss, backdrop, group, _, colors)
+					gxCooldownsDB.style[1] = skinName
+					gxCooldownsDB.style[2] = gloss
+					gxCooldownsDB.style[3] = backdrop
+					gxCooldownsDB.style[4] = colors
+				end
+				
+				LBF:RegisterSkinCallback("gxCooldowns", skinChanged, self)
+				buttonGroup = LBF:Group("gxCooldowns")
+				buttonGroup:Skin(unpack(gxCooldownsDB.style))
+			end
+		end
+		
+		self.playerGUID = UnitGUID("player")
+		
+		for i = 1, 19 do
+			self:PLAYER_EQUIPMENT_CHANGED(i, true)
+		end
+		
+		scanCooldowns(self)
+		
+		self:UnregisterEvent("PLAYER_LOGIN")
+		self.PLAYER_LOGIN = nil
+	end
+end
+
 addon.SPELL_UPDATE_COOLDOWN = function(self)
 	local startTime, duration, enabled, texture
 	if (self.updateNext) then
 		startTime, duration, enabled = GetSpellCooldown(self.updateNext)
-		if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+		if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 			texture = GetSpellTexture(self.updateNext)
 			self:newCooldown(self.updateNext, startTime, duration, texture, "SPELL")
 			self.updateNext = nil
@@ -439,7 +507,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	
 	if (self.updateSpecial) then
 		startTime, duration, enabled = GetSpellCooldown(self.updateSpecial)
-		if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+		if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 			texture = GetSpellTexture(self.updateSpecial)
 			self:newCooldown(self.updateSpecial, startTime, duration, texture, "SPELL")
 			self.updateSpecial = nil
@@ -458,7 +526,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		return
 	end
 	
-	local unit, abilityName, interrupted = split(",", self.updateAbility)
+	local unit, abilityName = split(",", self.updateAbility)
 	if (FD == abilityName) then
 		self.updateNext = abilityName
 		return
@@ -484,17 +552,10 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		end
 	end
 	
-	if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+	if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 		self:newCooldown(abilityName, startTime, duration, texture, type)
-		
-		if (interrupted and settings.enableOutput) then
-			local schoolName = spellSchools[self.spellSchoolID].Name
-			local colorString = spellSchools[self.spellSchoolID].colorString
-			
-			local result = colorString .. format(L["%s school is locked for %d seconds!"], schoolName, duration) .. "|r"
-			
-			self:print(result)
-		end
+	elseif (enabled == 1 and self.interrupted) then
+		self.updateNext = abilityName
 	end
 	
 	self.updateAbility = nil
@@ -505,7 +566,7 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	
 	if (self.queuedItem) then	-- For items with a cooldown that doesn't start before leaving combat!
 		startTime, duration, enabled = GetItemCooldown(self.queuedItem)
-		if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+		if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 			texture = select(10, GetItemInfo(self.queuedItem))
 			self:newCooldown(self.queuedItem, startTime, duration, texture, "ITEM")
 			
@@ -515,11 +576,11 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	
 	if (self.updateItem) then
 		startTime, duration, enabled = GetItemCooldown(self.updateItem)
-		if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+		if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 			texture = select(10, GetItemInfo(self.updateItem))
 			self:newCooldown(self.updateItem, startTime, duration, texture, "ITEM")
 			self.updateItem = nil
-		elseif (enabled == 0 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+		elseif (enabled == 0 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 			self.queuedItem = self.updateItem
 			self.updateItem = nil
 		end
@@ -527,7 +588,7 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	
 	if (self.updateSlotID) then
 		startTime, duration, enabled = GetInventoryItemCooldown("player", self.updateSlotID)
-		if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
+		if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 			texture = GetInventoryItemTexture("player", self.updateSlotID)
 			self:newCooldown(self.updateSlotID, startTime, duration, texture, "INVENTORY")
 			
@@ -536,14 +597,6 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	end
 end
 
-local spellNameToSlotID = {}
-local enchantIDToSpellName = {
-	[3601] = GetSpellInfo(54793),	-- Frag Belt
-	[3603] = GetSpellInfo(54998),	-- Hand-Mounted Pyro Rocket
-	[3604] = GetSpellInfo(54999),	-- Hyperspeed Accelerators
-	[3606] = GetSpellInfo(55016),	-- Nitro Boosts
-	[3859] = GetSpellInfo(63765)	-- Springy Arachnoweave
-}
 addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 	if (not beingEquipped) then
 		for spellName, id in next, spellNameToSlotID do
@@ -570,11 +623,11 @@ addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 end
 
 addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
-	if ((unit ~= "player" and unit ~= "pet") or settings.blacklist[spellName]) then
+	if ((unit ~= "player" and unit ~= "pet") or gxCooldownsDB.blacklist[spellName]) then
 		return
 	end
 	
-	local item = settings.itemSpells[spellName]
+	local item = gxCooldownsDB.items[spellName]
 	if (item) then
 		self.updateItem = item
 		
@@ -593,14 +646,6 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 	end
 	
 	self.updateAbility = unit..","..spellName
-end
-
-addon.UNIT_SPELLCAST_FAILED_QUIET = function(self, unit, spellName)
-	if (unit ~= "player") then
-		return
-	end
-	
-	self.updateAbility = unit..","..spellName..",true" -- interrupted
 end
 
 addon.SPELL_UPDATE_USABLE = function(self)
@@ -637,33 +682,26 @@ addon.SPELL_UPDATE_USABLE = function(self)
 	end
 end
 
-local specialOccasions = {
-	[GetSpellInfo(14177)] = true,	-- Cold Blood
-	[GetSpellInfo(11129)] = true,	-- Combustion
-	[GetSpellInfo(20216)] = true,	-- Divine Favor
-	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
-	[GetSpellInfo(14751)] = true,	-- Inner Focus
-	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
-	[GetSpellInfo(12043)] = true	-- Presence of Mind
-}
-addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, _, _, _, ...)
-	local _, spellName, spellSchoolID = ...
+addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, destGUID, _, _, ...)
+	local _, spellName, _, _, iSpellName, spellSchoolID = ...
 	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellName]) then
 		self.updateSpecial = spellName
-	elseif (event == "SPELL_CAST_START" and sourceGUID == self.playerGUID) then
+	elseif (event == "SPELL_INTERRUPT" and destGUID == self.playerGUID) then
 		self.spellSchoolID = spellSchoolID
+		self.interrupted = true
+		self.updateAbility = "player,"..iSpellName
 	end
 end
 
-do
+do	-- Stealth and Prowl apparently trigger SPELL_UPDATE_COOLDOWN before the aura is removed sometimes :(
 	local class = select(2, UnitClass("player"))
 	if (class == "ROGUE" or class == "DRUID") then
 		local stealth = class == "ROGUE" and GetSpellInfo(1784) or GetSpellInfo(5215)
 		addon:RegisterEvent("UPDATE_STEALTH")
 		addon.UPDATE_STEALTH = function(self)
 			local startTime, duration, enabled = GetSpellCooldown(stealth)
-			if (enabled == 1 and duration > settings.minDuration and (settings.maxDuration and duration < settings.maxDuration or true)) then
-				texture = GetSpellTexture(stealth)
+			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
+				local texture = GetSpellTexture(stealth)
 				self:newCooldown(stealth, startTime, duration, texture, "SPELL")
 			end
 		end

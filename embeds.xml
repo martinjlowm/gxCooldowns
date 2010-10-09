@@ -1,0 +1,5 @@
+﻿<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="libs\LibStub\LibStub.lua"/>
+	<Script file="libs\tekShiner\tekShiner.lua"/>
+	<Include file="libs\tekKonfig\tekKonfig.xml"/>
+</Ui>

@@ -2,12 +2,11 @@
 ## Title: |cffffaa00gx|r|cff999999Cooldowns|r
 ## Author: Guardix
 ## Version: 1.5
+## SavedVariables: gxCooldownsDB
 ## Notes: Shows player, pet and item cooldowns as icons.
-## OptionalDeps: gxMedia, ButtonFacade
+## OptionalDeps: ButtonFacade
 
-Localization\enUS.lua
-Localization\deDE.lua
-Localization\frFR.lua
+embeds.xml
 
-cooldownConfig.lua
+configuration.lua
 cooldown.lua
