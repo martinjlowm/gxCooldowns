@@ -340,6 +340,8 @@ end
 
 aTable.updateFrames = function(growth)
 	gxCooldownsDB.growth = growth
+	addon:SetHeight(36)
+	addon:SetWidth(36) -- Reset the dimensions before we engage repositionFrames
 	repositionFrames(addon)
 	
 	addon:ClearAllPoints()
