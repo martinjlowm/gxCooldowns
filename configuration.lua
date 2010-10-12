@@ -35,10 +35,10 @@ local defaults = {
 	},
 	
 	scale = 1,
-	gap = 8,
+	gap = 10,
 	growth = "Left and Right",
 	xOffset = 0,
-	yOffset = -150,
+	yOffset = 0,
 }
 
 local addMainOptions = function(self)
