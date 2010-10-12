@@ -128,7 +128,6 @@ local enchantIDToSpellName = {
 local specialOccasions = {
 	[GetSpellInfo(14177)] = true,	-- Cold Blood
 	[GetSpellInfo(11129)] = true,	-- Combustion
-	[GetSpellInfo(20216)] = true,	-- Divine Favor
 	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
 	[GetSpellInfo(14751)] = true,	-- Inner Focus
 	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
@@ -341,6 +340,8 @@ end
 
 aTable.updateFrames = function(growth)
 	gxCooldownsDB.growth = growth
+	addon:SetHeight(36)
+	addon:SetWidth(36) -- Reset the dimensions before we engage repositionFrames
 	repositionFrames(addon)
 	
 	addon:ClearAllPoints()
@@ -429,9 +430,9 @@ end
 do
 	local scanCooldowns = function(self)
 		local spellName, startTime, duration, enabled, texture
-		
+
 		for spellNum = 1, 500 do
-			spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
+			spellName = GetSpellBookItemName(spellNum, BOOKTYPE_SPELL)
 			
 			if (not spellName) then
 				break

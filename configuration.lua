@@ -26,14 +26,6 @@ local defaults = {
 	minDuration = 1.5,
 	maxDuration = 3600,
 	items = { 
-		[GetSpellInfo(42292)] = 42122,	-- 'PvP Trinket'			Medallion of the Horde
-		[GetSpellInfo(43186)] = 33448,	-- 'Restore Mana'			Runic Mana Potion
-		[GetSpellInfo(43185)] = 33447,	-- 'Healing Potion'			Runic Healing Potion
-		[GetSpellInfo(53762)] = 40093,	-- 'Indestructible'			Indestructible Potion
-		[GetSpellInfo(53908)] = 40211,	-- 'Speed'					Potion of Speed
-		[GetSpellInfo(53909)] = 40212,	-- 'Wild Magic'				Potion of Wild Magic
-		[GetSpellInfo(42987)] = 33312,	-- 'Replenish Mana'			Mana Sapphire
-		[GetSpellInfo(75495)] = 54589	-- 'Eyes of Twilight'		Glowing Twilight Scale
 	},
 	
 	style = {
@@ -43,10 +35,10 @@ local defaults = {
 	},
 	
 	scale = 1,
-	gap = 8,
+	gap = 10,
 	growth = "Left and Right",
 	xOffset = 0,
-	yOffset = -150,
+	yOffset = 0,
 }
 
 local addMainOptions = function(self)
@@ -59,10 +51,10 @@ local addMainOptions = function(self)
 	
 	local dropdown, dText = Dropdown.new(mainGroup, "Growth", "TOPLEFT", mainGroup, "TOPLEFT", 15, -10)
 	dText:SetText(gxCooldownsDB.growth)
-	local OnClick = function()
-		UIDropDownMenu_SetSelectedValue(dropdown, this.value)
-		dText:SetText(this.value)
-		aTable.updateFrames(this.value)
+	local OnClick = function(self)
+		UIDropDownMenu_SetSelectedValue(dropdown, self.value)
+		dText:SetText(self.value)
+		aTable.updateFrames(self.value)
 	end
 	UIDropDownMenu_Initialize(dropdown, function()
 		local selected, info = UIDropDownMenu_GetSelectedValue(dropdown) or gxCooldownsDB.growth, UIDropDownMenu_CreateInfo()
@@ -202,6 +194,19 @@ local addMainOptions = function(self)
 	aTable.locked = true
 	
 	self:SetScript("OnShow", nil)
+end
+
+local scanLostCache = function()
+	local result = ""
+	for itemSpell, itemID in next, gxCooldownsDB.items do
+		if (not GetItemInfo(itemID)) then
+			result = result .. itemID .. ", "
+			
+			gxCooldownsDB.items[itemSpell] = nil
+		end
+	end
+	result = string.sub(result, 1, -3)
+	print("|cffffaa00gx|r|cff999999Cooldowns:|r The following items are removed since they are no longer stored in your local cache: " .. result)
 end
 
 local updateItemList = function(group)
@@ -403,6 +408,10 @@ local addItemsOptions = function(self)
 	local i = 1
 	for _, itemID in next, gxCooldownsDB.items do
 		itemName = GetItemInfo(itemID)
+		if (not itemName) then
+			scanLostCache()
+			break
+		end
 		group.itemNameToID[itemName] = itemID
 		group.items[i] = itemName
 		i = i + 1
