@@ -3,18 +3,21 @@ local aName, aTable = ...
 local LBF, buttonGroup
 local Shiner = LibStub("tekShiner")
 
-local unpack = unpack
+local match = string.match
+local next = next
+local select = select
+local split = string.split
 local tinsert = table.insert
 local tremove = table.remove
-local split = string.split
-local match = string.match
-local select = select
-local AutoCastShine_AutoCastStart = AutoCastShine_AutoCastStart
+local unpack = unpack
+
+local GetInventoryItemCooldown = GetInventoryItemCooldown
+local GetInventoryItemTexture = GetInventoryItemTexture
+local GetItemCooldown = GetItemCooldown
+local GetItemInfo = GetItemInfo
+local GetPetActionCooldown = GetPetActionCooldown
 local GetSpellCooldown = GetSpellCooldown
 local GetSpellTexture = GetSpellTexture
-local GetItemCooldown = GetItemCooldown
-local GetInventoryItemCooldown = GetInventoryItemCooldown
-local GetPetActionCooldown = GetPetActionCooldown
 
 -- We limit the schools to double schools for now. (Only frostfire is available to players atm.) http://www.wowwiki.com/API_COMBAT_LOG_EVENT
 local spellSchoolColors = {
@@ -177,7 +180,47 @@ tex:SetTexture(.6, .6, .6, .6)
 tex:Hide()
 addon.anchor = tex
 
-local repositionFrames
+local repositionFrames = function(self)
+	local gap = gxCooldownsDB.gap
+	
+	local point, rel, anchor, x, y
+	local numActive, prev = 0
+	for _, frame in next, self.active do
+		frame:ClearAllPoints()
+		if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
+			if (prev) then
+				rel, anchor, x = prev, "RIGHT", gap
+			else
+				rel, anchor, x = self, "LEFT", 0
+			end
+			point, y = "LEFT", 0
+		else
+			if (prev) then
+				rel, anchor, y = prev, "TOP", gap
+			else
+				rel, anchor, y = self, "BOTTOM", 0
+			end
+			point, x = "BOTTOM", 0
+		end
+		
+		frame:SetPoint(point, rel, anchor, x, y)
+		
+		numActive = numActive + 1
+		prev = frame
+	end
+	
+	local length = numActive * (36 + gap) - gap
+	if (length < 36) then
+		length = 36
+	end
+	
+	if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
+		self:SetWidth(length)
+	else
+		self:SetHeight(length)
+	end
+end
+
 do
 	local frameNum = 1
 	local loadFrame = function(self)
@@ -228,47 +271,6 @@ do
 		frameNum = frameNum + 1
 		
 		return frame
-	end
-	
-	repositionFrames = function(self)
-		local gap = gxCooldownsDB.gap
-		
-		local point, rel, anchor, x, y
-		local numActive, prev = 0
-		for _, frame in next, self.active do
-			frame:ClearAllPoints()
-			if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
-				if (prev) then
-					rel, anchor, x = prev, "RIGHT", gap
-				else
-					rel, anchor, x = self, "LEFT", 0
-				end
-				point, y = "LEFT", 0
-			else
-				if (prev) then
-					rel, anchor, y = prev, "TOP", gap
-				else
-					rel, anchor, y = self, "BOTTOM", 0
-				end
-				point, x = "BOTTOM", 0
-			end
-			
-			frame:SetPoint(point, rel, anchor, x, y)
-			
-			numActive = numActive + 1
-			prev = frame
-		end
-		
-		local length = numActive * (36 + gap) - gap
-		if (length < 36) then
-			length = 36
-		end
-		
-		if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
-			self:SetWidth(length)
-		else
-			self:SetHeight(length)
-		end
 	end
 	
 	addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, aType, elapseFix)
@@ -684,7 +686,7 @@ end
 
 addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, destGUID, _, _, ...)
 	local _, spellName, _, _, iSpellName, spellSchoolID = ...
-	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellName]) then
+	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellName] and not gxCooldownsDB.blacklist[spellName]) then
 		self.updateSpecial = spellName
 	elseif (event == "SPELL_INTERRUPT" and destGUID == self.playerGUID) then
 		self.spellSchoolID = spellSchoolID

@@ -1,11 +1,25 @@
 local aName, aTable = ...
 
+local floor = math.floor
+local format = string.format
+local tinsert = table.insert
+local next = next
+local tremove = table.remove
+local select = select
+local sort = table.sort
+local tonumber = tonumber
+
 local Button = LibStub("tekKonfig-Button")
 local Dropdown = LibStub("tekKonfig-Dropdown")
 local Group = LibStub("tekKonfig-Group")
 local Heading = LibStub("tekKonfig-Heading")
 local Scroll = LibStub("tekKonfig-Scroll")
 local Slider = LibStub("tekKonfig-Slider")
+
+local GetItemInfo = GetItemInfo
+local GetItemSpell = GetItemSpell
+local GetSpellInfo = GetSpellInfo
+local GetSpellLink = GetSpellLink
 
 local defaults = {
 	blacklist = {},
@@ -43,18 +57,17 @@ local addMainOptions = function(self)
 	mainGroup:SetPoint("BOTTOMLEFT", 16, 16)
 	mainGroup:SetPoint("BOTTOMRIGHT", -16, 16)
 	
-	local dropdown, dtext, dcontainer = Dropdown.new(mainGroup, "Growth", "TOPLEFT", mainGroup, "TOPLEFT", 15, -10)
-	dtext:SetText(gxCooldownsDB.growth)
-	
+	local dropdown, dText = Dropdown.new(mainGroup, "Growth", "TOPLEFT", mainGroup, "TOPLEFT", 15, -10)
+	dText:SetText(gxCooldownsDB.growth)
 	local OnClick = function()
 		UIDropDownMenu_SetSelectedValue(dropdown, this.value)
-		dtext:SetText(this.value)
+		dText:SetText(this.value)
 		aTable.updateFrames(this.value)
 	end
 	UIDropDownMenu_Initialize(dropdown, function()
 		local selected, info = UIDropDownMenu_GetSelectedValue(dropdown) or gxCooldownsDB.growth, UIDropDownMenu_CreateInfo()
 		
-		for name in pairs(aTable.growthValues) do
+		for name in next, aTable.growthValues do
 			info.text = name
 			info.value = name
 			info.func = OnClick
@@ -63,25 +76,26 @@ local addMainOptions = function(self)
 		end
 	end)
 	
-	local scale, scaletext = Slider.new(mainGroup, string.format("Scale: %.2f", gxCooldownsDB.scale), 0.5, 2)
+	
+	local scale, scaleText = Slider.new(mainGroup, format("Scale: %.2f", gxCooldownsDB.scale), 0.5, 2)
 	scale:SetPoint("TOPLEFT", mainGroup, "TOPLEFT", 20, -90)
 	scale:SetPoint("TOPRIGHT", mainGroup, "TOP", -15, -90)
 	scale:SetValue(gxCooldownsDB.scale)
 	scale:SetValueStep(.05)
 	scale:SetScript("OnValueChanged", function(self)
 		local scale = self:GetValue()
-		scaletext:SetText(string.format("Scale: %.2f", scale))
+		scaleText:SetText(format("Scale: %.2f", scale))
 		aTable.setScale(scale)
 	end)
 	
-	local gap, gaptext = Slider.new(mainGroup, string.format("Gap: %.2f", gxCooldownsDB.gap), 1, 25)
+	local gap, gapText = Slider.new(mainGroup, "Gap: " .. gxCooldownsDB.gap, 1, 25)
 	gap:SetPoint("TOPRIGHT", mainGroup, "TOPRIGHT", -20, -90)
 	gap:SetPoint("TOPLEFT", mainGroup, "TOP", 15, -90)
 	gap:SetValue(gxCooldownsDB.gap)
 	gap:SetValueStep(1)
 	gap:SetScript("OnValueChanged", function(self)
 		local gap = self:GetValue()
-		gaptext:SetText("Gap: " .. gap)
+		gapText:SetText("Gap: " .. gap)
 		aTable.setGap(gap)
 	end)
 	
@@ -96,24 +110,20 @@ local addMainOptions = function(self)
 		gxCooldownsDB.minDuration = dur
 	end)
 	
-	local maxDur, maxDurText = Slider.new(mainGroup, string.format("Maximum duration: %.1fm", gxCooldownsDB.maxDuration/60), 10, 60*60)
+	local maxDur, maxDurText = Slider.new(mainGroup, format("Maximum duration: %.1fm", gxCooldownsDB.maxDuration/60), 10, 60*60)
 	maxDur:SetPoint("TOPLEFT", gap, "BOTTOMLEFT", 0, -40)
 	maxDur:SetPoint("TOPRIGHT", gap, "BOTTOMRIGHT", 0, -40)
 	maxDur:SetValue(gxCooldownsDB.maxDuration)
 	maxDur:SetValueStep(5)
 	maxDur:SetScript("OnValueChanged", function(self)
 		local dur = self:GetValue()
-		maxDurText:SetText(string.format("Maximum duration: %.1fm", dur/60))
+		maxDurText:SetText(format("Maximum duration: %.1fm", dur/60))
 		gxCooldownsDB.maxDuration = dur
 	end)
 	
-	local positioning = Heading.new(mainGroup, "Positioning")
-	positioning:ClearAllPoints()
-	positioning:SetPoint("TOPLEFT", minDur, "BOTTOMLEFT", -10, -30)
-	
 	local x = CreateFrame("EditBox", "gxCooldownsConfigX", mainGroup, "InputBoxTemplate")
-	x:SetPoint("TOPLEFT", minDur, "BOTTOMLEFT", 0, -70)
-	x:SetPoint("TOPRIGHT", minDur, "BOTTOMRIGHT", 0, -70)
+	x:SetPoint("TOPLEFT", minDur, "BOTTOMLEFT", 0, -40)
+	x:SetPoint("TOPRIGHT", minDur, "BOTTOMRIGHT", 0, -40)
 	x:SetHeight(30)
 	x:SetAutoFocus(false)
 	x:SetText(gxCooldownsDB.xOffset)
@@ -130,8 +140,8 @@ local addMainOptions = function(self)
 	xlabel:SetPoint("BOTTOMLEFT", x, "TOPLEFT")
 	
 	local y = CreateFrame("EditBox", "gxCooldownsConfigY", mainGroup, "InputBoxTemplate")
-	y:SetPoint("TOPLEFT", maxDur, "BOTTOMLEFT", 0, -70)
-	y:SetPoint("TOPRIGHT", maxDur, "BOTTOMRIGHT", 0, -70)
+	y:SetPoint("TOPLEFT", maxDur, "BOTTOMLEFT", 0, -40)
+	y:SetPoint("TOPRIGHT", maxDur, "BOTTOMRIGHT", 0, -40)
 	y:SetHeight(30)
 	y:SetAutoFocus(false)
 	y:SetText(gxCooldownsDB.yOffset)
@@ -206,7 +216,7 @@ local updateItemList = function(group)
 	end
 	group.scrollbar:SetMinMaxValues(0, maxOffset)
 	
-	local offset = group.scrollbar:GetValue()
+	local offset = floor(group.scrollbar:GetValue())
 	local i = offset + 1
 	for _, button in next, group.buttons do
 		if (i > (group.maxButtons + offset)) then
@@ -238,13 +248,13 @@ local removeItem = function(button, group)
 	button.text:SetText()
 	for i, item in next, group.items do
 		if (item == name) then
-			table.remove(group.items, i)
+			tremove(group.items, i)
 			break
 		end
 	end
 	group.itemNameToID[name] = nil
 	
-	table.sort(group.items)
+	sort(group.items)
 	
 	updateItemList(group)
 	
@@ -303,10 +313,10 @@ local addItem = function(item, itemSpell, group)
 	local name, link = GetItemInfo(item)
 	local itemID = tonumber(string.match(link, "Hitem:(%d+)"))
 	
-	table.insert(group.items, name)
+	tinsert(group.items, name)
 	group.itemNameToID[name] = itemID
 	
-	table.sort(group.items)
+	sort(group.items)
 	
 	local numButtons = #(group.buttons)
 	if (numButtons < group.maxButtons) then
@@ -365,7 +375,7 @@ local addItemsOptions = function(self)
 				addItem(item, itemSpell, self.group)
 			end
 		else
-			self:ClearFocus()
+			input:ClearFocus()
 		end
 	end)
 	
@@ -376,18 +386,18 @@ local addItemsOptions = function(self)
 	group.buttons = {}
 	group.itemNameToID = {}
 	group.items = {}
+	group.maxButtons = floor((group:GetHeight() - 10) / 25)
 	
 	add.group = group
 	input.group = group
 	
-	local scrollbar = Scroll.new(group, 6, 1)
-	
-	local f = scrollbar:GetScript("OnValueChanged")
-	scrollbar:SetScript("OnValueChanged", function(self, value, ...)
+	local scroll = Scroll.new(group, 6, 1)
+	local func = scroll:GetScript("OnValueChanged")
+	scroll:SetScript("OnValueChanged", function(self, value, ...)
 		updateItemList(group)
-		return f(self, value, ...)
+		return func(self, value, ...)
 	end)
-	group.scrollbar = scrollbar
+	group.scrollbar = scroll
 	
 	local itemName
 	local i = 1
@@ -397,9 +407,7 @@ local addItemsOptions = function(self)
 		group.items[i] = itemName
 		i = i + 1
 	end
-	table.sort(group.items)
-	
-	group.maxButtons = floor((group:GetHeight() - 10) / 25)
+	sort(group.items)
 	
 	for i in next, group.items do
 		if (i <= group.maxButtons) then
@@ -410,7 +418,7 @@ local addItemsOptions = function(self)
 	
 	self:EnableMouseWheel()
 	self:SetScript("OnMouseWheel", function(self, val)
-		scrollbar:SetValue(scrollbar:GetValue() - val)
+		scroll:SetValue(scroll:GetValue() - val)
 	end)
 	local numItems = #(group.items)
 	local maxOffset
@@ -419,8 +427,8 @@ local addItemsOptions = function(self)
 	else
 		maxOffset = 0
 	end
-	scrollbar:SetMinMaxValues(0, maxOffset)
-	scrollbar:SetValue(0)
+	scroll:SetMinMaxValues(0, maxOffset)
+	scroll:SetValue(0)
 	
 	self:SetScript("OnShow", nil)
 end
@@ -437,7 +445,7 @@ local updateBlacklist = function(group)
 	end
 	group.scrollbar:SetMinMaxValues(0, maxOffset)
 	
-	local offset = group.scrollbar:GetValue()
+	local offset = floor(group.scrollbar:GetValue())
 	local i = offset + 1
 	for _, button in next, group.buttons do
 		if (i > (group.maxButtons + offset)) then
@@ -467,13 +475,13 @@ local removeSpell = function(button, group)
 	button.text:SetText()
 	for i, spell in next, group.spells do
 		if (spell == name) then
-			table.remove(group.spells, i)
+			tremove(group.spells, i)
 			break
 		end
 	end
 	group.spellNameToID[name] = nil
 	
-	table.sort(group.spells)
+	sort(group.spells)
 	
 	updateBlacklist(group)
 	
@@ -484,10 +492,10 @@ local addSpell = function(spellLink, group)
 	local spellID = tonumber(string.match(spellLink, "Hspell:(%d+)"))
 	local name = GetSpellInfo(spellID)
 	
-	table.insert(group.spells, name)
+	tinsert(group.spells, name)
 	group.spellNameToID[name] = spellID
 	
-	table.sort(group.spells)
+	sort(group.spells)
 	
 	local numButtons = #(group.buttons)
 	if (numButtons < group.maxButtons) then
@@ -571,18 +579,18 @@ local addBlacklistOptions = function(self)
 	group.buttons = {}
 	group.spells = {}
 	group.spellNameToID = {}
+	group.maxButtons = floor((group:GetHeight() - 10) / 25)
 	
 	add.group = group
 	input.group = group
 	
-	local scrollbar = Scroll.new(group, 6, 1)
-	
-	local f = scrollbar:GetScript("OnValueChanged")
-	scrollbar:SetScript("OnValueChanged", function(self, value, ...)
+	local scroll = Scroll.new(group, 6, 1)
+	local f = scroll:GetScript("OnValueChanged")
+	scroll:SetScript("OnValueChanged", function(self, value, ...)
 		updateBlacklist(group)
 		return f(self, value, ...)
 	end)
-	group.scrollbar = scrollbar
+	group.scrollbar = scroll
 	
 	
 	local i = 1
@@ -592,9 +600,7 @@ local addBlacklistOptions = function(self)
 		
 		i = i + 1
 	end
-	table.sort(group.spells)
-	
-	group.maxButtons = floor((group:GetHeight() - 10) / 25)
+	sort(group.spells)
 	
 	for i in next, group.spells do
 		if (i <= group.maxButtons) then
@@ -605,7 +611,7 @@ local addBlacklistOptions = function(self)
 	
 	self:EnableMouseWheel()
 	self:SetScript("OnMouseWheel", function(self, val)
-		scrollbar:SetValue(scrollbar:GetValue() - val)
+		scroll:SetValue(scroll:GetValue() - val)
 	end)
 	local numSpells = #(group.spells)
 	local maxOffset
@@ -614,8 +620,8 @@ local addBlacklistOptions = function(self)
 	else
 		maxOffset = 0
 	end
-	scrollbar:SetMinMaxValues(0, maxOffset)
-	scrollbar:SetValue(0)
+	scroll:SetMinMaxValues(0, maxOffset)
+	scroll:SetValue(0)
 	
 	self:SetScript("OnShow", nil)
 end
