@@ -410,7 +410,7 @@ local addItemsOptions = function(self)
 		itemName = GetItemInfo(itemID)
 		if (not itemName) then
 			scanLostCache()
-			return
+			break
 		end
 		group.itemNameToID[itemName] = itemID
 		group.items[i] = itemName
