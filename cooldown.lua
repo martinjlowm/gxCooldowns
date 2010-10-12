@@ -430,10 +430,13 @@ do
 	local scanCooldowns = function(self)
 		local spellName, startTime, duration, enabled, texture
 		
-		local _, _, offset, numSpellsInTab = GetSpellTabInfo(GetNumSpellTabs())
-		local numSpells = offset + numSpellsInTab
-		for spellNum = 1, numSpells do
+		for spellNum = 1, 500 do
 			spellName = GetSpellName(spellNum, BOOKTYPE_SPELL)
+			
+			if (not spellName) then
+				break
+			end
+			
 			startTime, duration, enabled = GetSpellCooldown(spellName)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 				self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL", true)
