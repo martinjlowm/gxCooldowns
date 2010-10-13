@@ -80,7 +80,7 @@ local addMainOptions = function(self)
 		aTable.setScale(scale)
 	end)
 	
-	local gap, gapText = Slider.new(mainGroup, "Gap: " .. gxCooldownsDB.gap, 1, 25)
+	local gap, gapText = Slider.new(mainGroup, "Gap: " .. gxCooldownsDB.gap, -10, 25)
 	gap:SetPoint("TOPRIGHT", mainGroup, "TOPRIGHT", -20, -90)
 	gap:SetPoint("TOPLEFT", mainGroup, "TOP", 15, -90)
 	gap:SetValue(gxCooldownsDB.gap)
