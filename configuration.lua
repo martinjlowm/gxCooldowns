@@ -494,7 +494,7 @@ local removeSpell = function(button, group)
 	
 	updateBlacklist(group)
 	
-	gxCooldownsDB.blacklist[name] = nil
+	gxCooldownsDB.blacklist[button.itemID] = nil
 end
 
 local addSpell = function(spellLink, group)
@@ -512,7 +512,7 @@ local addSpell = function(spellLink, group)
 	end
 	updateBlacklist(group)
 	
-	gxCooldownsDB.blacklist[name] = spellID
+	gxCooldownsDB.blacklist[spellID] = true
 end
 
 local addBlacklistOptions = function(self)
@@ -603,8 +603,8 @@ local addBlacklistOptions = function(self)
 	
 	
 	local i = 1
-	for spellName, spellID in next, gxCooldownsDB.blacklist do
-		group.spells[i] = spellName
+	for spellID in next, gxCooldownsDB.blacklist do
+		group.spells[i] = GetSpellInfo(spellID)
 		group.spellNameToID[spellName] = spellID
 		
 		i = i + 1
