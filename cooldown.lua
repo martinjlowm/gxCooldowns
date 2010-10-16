@@ -113,26 +113,26 @@ local spellSchoolColors = {
 		{.5,.5,1}
 	},
 }
-local FD = GetSpellInfo(5384)	-- Feign Death can't be tracked through CLEU :(
+local FD = 5384 -- Feign Death can't be tracked through CLEU :(
 local sharedCooldowns = {
-	[GetSpellInfo(49376)] = GetSpellInfo(16979)	-- 'Feral Charge - Cat' refreshes 'Feral Charge - Bear'
+	[49376] = 16979	-- 'Feral Charge - Cat' refreshes 'Feral Charge - Bear'
 }
-local spellNameToSlotID = {}
-local enchantIDToSpellName = {
-	[3601] = GetSpellInfo(54793),	-- Frag Belt
-	[3603] = GetSpellInfo(54998),	-- Hand-Mounted Pyro Rocket
-	[3604] = GetSpellInfo(54999),	-- Hyperspeed Accelerators
-	[3606] = GetSpellInfo(55016),	-- Nitro Boosts
-	[3859] = GetSpellInfo(63765)	-- Springy Arachnoweave
+local spellIDToSlotID = {}
+local enchantTextToSpellID = {
+	["Use: Detatch and throw a Cobalt Frag Bomb, inflicting 875 Fire damage and incapacitating targets for 3 sec in a 3 yard radius.  Any damage will break the effect. (6 Min Cooldown)"] = 67890, -- Frag Belt
+	["Use: Fires an explosive rocket at an enemy for 1165 Fire damage. (45 Sec Cooldown)"] = 54757, -- Hand-Mounted Pyro Rocket
+	["Use: Greatly increase your run speed for 5 sec. (3 Min Cooldown)"] = 55004, -- Nitro Boosts
+	["Use: Increases your haste rating by 240 for 12 sec. (1 Min Cooldown)"] = 54758, -- Hyperspeed Accelerators
+	["Use: Reduces your falling speed for 30 sec. (1 Min Cooldown)"] = 55001, -- Springy Arachnoweave
 }
 local specialOccasions = {
-	[GetSpellInfo(14751)] = true,	-- Chakra
-	[GetSpellInfo(14177)] = true,	-- Cold Blood
-	[GetSpellInfo(11129)] = true,	-- Combustion
-	[GetSpellInfo(16166)] = true,	-- Elemental Mastery
-	[GetSpellInfo(89485)] = true,	-- Inner Focus
-	[GetSpellInfo(17116)] = true,	-- Nature's Swiftness
-	[GetSpellInfo(12043)] = true	-- Presence of Mind
+	[14751] = true,	-- Chakra
+	[14177] = true,	-- Cold Blood
+	[11129] = true,	-- Combustion
+	[16166] = true,	-- Elemental Mastery
+	[89485] = true,	-- Inner Focus
+	[17116] = true,	-- Nature's Swiftness
+	[12043] = true	-- Presence of Mind
 }
 
 local addon = CreateFrame("Frame", aName .. "Anchor", UIParent)
@@ -430,18 +430,18 @@ end
 
 do
 	local scanCooldowns = function(self)
-		local spellName, startTime, duration, enabled, texture
-
+		local spellID, startTime, duration, enabled, texture
+		
 		for spellNum = 1, 500 do
-			spellName = GetSpellBookItemName(spellNum, BOOKTYPE_SPELL)
+			_, spellID = GetSpellBookItemInfo(spellNum, BOOKTYPE_SPELL)
 			
-			if (not spellName) then
+			if (not spellID) then
 				break
 			end
 			
-			startTime, duration, enabled = GetSpellCooldown(spellName)
+			startTime, duration, enabled = GetSpellCooldown(spellID)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
-				self:newCooldown(spellName, startTime, duration, GetSpellTexture(spellName), "SPELL", true)
+				self:newCooldown(spellID, startTime, duration, GetSpellTexture(spellID), "SPELL", true)
 			end
 		end
 		
@@ -455,7 +455,7 @@ do
 			end
 		end
 		
-		for _, id in next, spellNameToSlotID do
+		for _, id in next, spellIDToSlotID do
 			startTime, duration, enabled = GetInventoryItemCooldown("player", id)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 				texture = GetInventoryItemTexture("player", id)
@@ -533,17 +533,17 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		return
 	end
 	
-	local unit, abilityName = split(",", self.updateAbility)
+	local unit, abilityID = split(",", self.updateAbility)
 	if (FD == abilityName) then
-		self.updateNext = abilityName
+		self.updateNext = abilityID
 		return
 	end
 	
 	local type
 	if (unit == "player") then
 		type = "SPELL"
-		texture = GetSpellTexture(abilityName)
-		startTime, duration, enabled = GetSpellCooldown(abilityName)
+		texture = GetSpellTexture(abilityID)
+		startTime, duration, enabled = GetSpellCooldown(abilityID)
 	else
 		local petAction
 		for i = 1, NUM_PET_ACTION_SLOTS do
@@ -560,9 +560,9 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	end
 	
 	if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
-		self:newCooldown(abilityName, startTime, duration, texture, type)
+		self:newCooldown(abilityID, startTime, duration, texture, type)
 	elseif (enabled == 1 and self.interrupted) then
-		self.updateNext = abilityName
+		self.updateNext = abilityID
 	end
 	
 	self.updateAbility = nil
@@ -604,11 +604,13 @@ addon.BAG_UPDATE_COOLDOWN = function(self)
 	end
 end
 
+local scanner = CreateFrame("GameTooltip", "gxCooldownsScanner", UIParent, "GameTooltipTemplate")
+scanner:SetOwner(UIParent, "ANCHOR_NONE")
 addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 	if (not beingEquipped) then
-		for spellName, id in next, spellNameToSlotID do
+		for spellID, id in next, spellIDToSlotID do
 			if (id and id == slotID) then
-				spellNameToSlotID[spellName] = nil
+				spellIDToSlotID[spellID] = nil
 				
 				break
 			end
@@ -617,20 +619,21 @@ addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 		return
 	end
 	
-	local itemLink = GetInventoryItemLink("player", slotID)
-	if (itemLink) then
-		local _, enchantID = match(itemLink, "Hitem:(%d+):(%d+)")
-		enchantID = tonumber(enchantID)
-		
-		if (enchantIDToSpellName[enchantID]) then
-			local spellName = enchantIDToSpellName[enchantID]
-			spellNameToSlotID[spellName] = slotID
+	scanner:SetInventoryItem("player", slotID)
+	local numLines = scanner:NumLines()
+	local line
+	for i = 1, numLines do
+		line = _G["gxCooldownsScannerTextLeft" .. i]
+		spellID = enchantTextToSpellID[line:GetText()]
+		if (spellID) then
+			spellIDToSlotID[spellID] = slotID
+			break
 		end
 	end
 end
 
-addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
-	if ((unit ~= "player" and unit ~= "pet") or gxCooldownsDB.blacklist[spellName]) then
+addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName, _, _, spellID)
+	if ((unit ~= "player" and unit ~= "pet") or gxCooldownsDB.blacklist[spellID]) then
 		return
 	end
 	
@@ -641,18 +644,18 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName)
 		return
 	end
 	
-	local slotID = spellNameToSlotID[spellName]
+	local slotID = spellIDToSlotID[spellID]
 	if (slotID) then
 		self.updateSlotID = slotID
 		
 		return
 	end
 	
-	if (sharedCooldowns[spellName]) then -- This should be druids only
-		self.updateShared = sharedCooldowns[spellName]
+	if (sharedCooldowns[spellID]) then -- This should be druids only
+		self.updateShared = sharedCooldowns[spellID]
 	end
 	
-	self.updateAbility = unit..","..spellName
+	self.updateAbility = unit..","..spellID
 end
 
 addon.SPELL_UPDATE_USABLE = function(self)
@@ -690,20 +693,20 @@ addon.SPELL_UPDATE_USABLE = function(self)
 end
 
 addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, destGUID, _, _, ...)
-	local _, spellName, _, _, iSpellName, spellSchoolID = ...
-	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellName] and not gxCooldownsDB.blacklist[spellName]) then
-		self.updateSpecial = spellName
+	local spellID, _, _, iSpellID, _, spellSchoolID = ...
+	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellID] and not gxCooldownsDB.blacklist[spellID]) then
+		self.updateSpecial = spellID
 	elseif (event == "SPELL_INTERRUPT" and destGUID == self.playerGUID) then
 		self.spellSchoolID = spellSchoolID
 		self.interrupted = true
-		self.updateAbility = "player,"..iSpellName
+		self.updateAbility = "player,"..iSpellID
 	end
 end
 
 do	-- Stealth and Prowl apparently trigger SPELL_UPDATE_COOLDOWN before the aura is removed sometimes :(
 	local class = select(2, UnitClass("player"))
 	if (class == "ROGUE" or class == "DRUID") then
-		local stealth = class == "ROGUE" and GetSpellInfo(1784) or GetSpellInfo(5215)
+		local stealth = class == "ROGUE" and 1784 or 5215
 		addon:RegisterEvent("UPDATE_STEALTH")
 		addon.UPDATE_STEALTH = function(self)
 			local startTime, duration, enabled = GetSpellCooldown(stealth)
