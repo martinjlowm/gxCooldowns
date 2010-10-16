@@ -534,7 +534,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	end
 	
 	local unit, abilityID = split(",", self.updateAbility)
-	if (FD == abilityName) then
+	if (FD == abilityID) then
 		self.updateNext = abilityID
 		return
 	end
@@ -548,8 +548,8 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		local petAction
 		for i = 1, NUM_PET_ACTION_SLOTS do
 			petAction = GetPetActionInfo(i)
-			if (abilityName == petAction) then
-				abilityName = i
+			if (abilityID == petAction) then
+				abilityID = i
 				type = "PET"
 				texture = select(3, GetPetActionInfo(i))
 				startTime, duration, enabled = GetPetActionCooldown(i)
