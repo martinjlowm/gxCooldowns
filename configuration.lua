@@ -470,7 +470,7 @@ local updateBlacklist = function(group)
 			button.icon:SetTexture(select(3, GetSpellInfo(id)))
 			button.text:SetText(GetSpellLink(id))
 			
-			button.itemID = id
+			button.spellID = id
 		end
 		
 		i = i + 1
@@ -478,8 +478,7 @@ local updateBlacklist = function(group)
 end
 
 local removeSpell = function(button, group)
-	local name = GetSpellInfo(button.itemID)
-	button.itemID = nil
+	local name = GetSpellInfo(button.spellID)
 	button.icon:SetTexture(nil)
 	button.text:SetText()
 	for i, spell in next, group.spells do
@@ -492,9 +491,10 @@ local removeSpell = function(button, group)
 	
 	sort(group.spells)
 	
-	updateBlacklist(group)
+	gxCooldownsDB.blacklist[button.spellID] = nil
+	button.spellID = nil
 	
-	gxCooldownsDB.blacklist[button.itemID] = nil
+	updateBlacklist(group)
 end
 
 local addSpell = function(spellLink, group)
@@ -605,7 +605,7 @@ local addBlacklistOptions = function(self)
 	local i = 1
 	for spellID in next, gxCooldownsDB.blacklist do
 		group.spells[i] = GetSpellInfo(spellID)
-		group.spellNameToID[spellName] = spellID
+		group.spellNameToID[GetSpellInfo(spellID)] = spellID
 		
 		i = i + 1
 	end
