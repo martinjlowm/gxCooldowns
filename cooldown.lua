@@ -545,10 +545,11 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 		texture = GetSpellTexture(abilityID)
 		startTime, duration, enabled = GetSpellCooldown(abilityID)
 	else
+		local abilityName = GetSpellInfo(abilityID)
 		local petAction
 		for i = 1, NUM_PET_ACTION_SLOTS do
 			petAction = GetPetActionInfo(i)
-			if (abilityID == petAction) then
+			if (abilityName == petAction) then
 				abilityID = i
 				type = "PET"
 				texture = select(3, GetPetActionInfo(i))
