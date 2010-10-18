@@ -131,6 +131,7 @@ local specialOccasions = {
 	[11129] = true,	-- Combustion
 	[16166] = true,	-- Elemental Mastery
 	[89485] = true,	-- Inner Focus
+	[34477] = true,	-- Misdirection
 	[17116] = true,	-- Nature's Swiftness
 	[12043] = true	-- Presence of Mind
 }
@@ -386,7 +387,7 @@ do
 		coords[2].x = x
 		coords[2].y = y
 	end
-
+	
 	local stopMoving = function(self, button)
 		if (button == "RightButton") then
 			return
@@ -464,7 +465,7 @@ do
 		end
 	end
 	
-	addon.PLAYER_LOGIN = function(self, addon)
+	addon.PLAYER_LOGIN = function(self)
 		aTable.setupConfiguration()
 		
 		self:SetHeight(36)
