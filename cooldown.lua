@@ -222,7 +222,41 @@ local repositionFrames = function(self)
 	end
 end
 
+local lockdown = function(self, elapsed)
+	local duration = self.duration - elapsed
+	if (duration <= 0) then
+		self.parent:dropCooldown(self.name)
+		
+		return
+	end
+	
+	self.duration = duration
+end
+
 do
+	local onUpdateFunc = function(self, elapsed)
+		if (elapsed > 3) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
+			elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
+			self.elapseFix = nil
+		end
+		
+		local duration = self.duration - elapsed
+		if (duration <= 0) then
+			self.parent:dropCooldown(self.name)
+			
+			return
+		end
+		
+		if (self.Model.time) then
+			if (self.max - duration > self.Model.time) then
+				self.Model:Hide()
+				self.Model.time = nil
+			end
+		end
+		
+		self.duration = duration
+	end
+	
 	local frameNum = 1
 	local loadFrame = function(self)
 		if (#(self.pool) > 0) then
@@ -245,21 +279,7 @@ do
 		model:SetAllPoints(frame)
 		model:Hide()
 		
-		frame:SetScript("OnUpdate", function(self, elapsed)
-			if (elapsed > 3) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
-				elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
-				self.elapseFix = nil
-			end
-			
-			local duration = self.duration - elapsed
-			if (duration <= 0) then
-				self.parent:dropCooldown(self.name)
-				
-				return
-			end
-			
-			self.duration = duration
-		end)
+		frame:SetScript("OnUpdate", onUpdateFunc)
 		
 		frame.Cooldown = _G[name.."Cooldown"]
 		frame.Icon = _G[name.."Icon"]
@@ -275,27 +295,34 @@ do
 	end
 	
 	addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, aType, elapseFix)
-		if (self.active[cooldownName]) then
+		if (self.active[cooldownName] and not self.lockdownTime) then
 			return
 		end
 		
-		local frame = loadFrame(self)
+		local frame
 		
-		local duration = seconds - (GetTime() - startTime)
-		frame.start = startTime
-		frame.elapseFix = elapseFix
-		frame.duration = duration
-		frame.max = seconds
+		if (self.lockdownTime and self.active[cooldownName]) then
+			frame = self.active[cooldownName]
+		else
+			frame = loadFrame(self)
+			
+			local duration = seconds - (GetTime() - startTime)
+			frame.start = startTime
+			frame.elapseFix = elapseFix
+			frame.duration = duration
+			frame.max = seconds
+			
+			frame.name = cooldownName
+			frame.type = aType
+			
+			frame.Icon:SetTexture(tex)
+			frame.Cooldown:SetCooldown(startTime, seconds)
+			frame:Show()
+		end
 		
-		frame.name = cooldownName
-		frame.type = aType
-		
-		frame.Icon:SetTexture(tex)
-		frame.Cooldown:SetCooldown(startTime, seconds)
-		frame:Show()
-		
-		if (self.interrupted) then
+		if (self.lockdownTime) then
 			frame.Model:Show()
+			frame.Model.time = self.lockdownTime
 			if (type(spellSchoolColors[self.spellSchoolID][1]) == "table") then
 				local i = 1
 				for _, sparkle in next, frame.Model.sparkles do
@@ -313,7 +340,7 @@ do
 				end
 			end
 			
-			self.interrupted = nil
+			self.lockdownTime = nil
 		end
 		
 		self.active[cooldownName] = frame
@@ -563,7 +590,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	
 	if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 		self:newCooldown(abilityID, startTime, duration, texture, type)
-	elseif (enabled == 1 and self.interrupted) then
+	elseif (enabled == 1 and self.lockdownTime) then
 		self.updateNext = abilityID
 	end
 	
@@ -694,13 +721,17 @@ addon.SPELL_UPDATE_USABLE = function(self)
 	end
 end
 
+local lockdownTime = {
+	["Pummel"] = 4,
+	["Shield Bash"] = 6,
+}
 addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, destGUID, _, _, ...)
-	local spellID, _, _, iSpellID, _, spellSchoolID = ...
+	local spellID, spellName, _, iSpellID, _, spellSchoolID = ...
 	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellID] and not gxCooldownsDB.blacklist[spellID]) then
 		self.updateSpecial = spellID
 	elseif (event == "SPELL_INTERRUPT" and destGUID == self.playerGUID) then
 		self.spellSchoolID = spellSchoolID
-		self.interrupted = true
+		self.lockdownTime = lockdownTime[spellName] or 8
 		self.updateAbility = "player,"..iSpellID
 	end
 end
