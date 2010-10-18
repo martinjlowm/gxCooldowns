@@ -226,7 +226,6 @@ do
 	local onUpdateFunc = function(self, elapsed)
 		if (elapsed > 3) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
 			elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
-			self.elapseFix = nil
 		end
 		
 		local duration = self.duration - elapsed
@@ -283,7 +282,7 @@ do
 		return frame
 	end
 	
-	addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, aType, elapseFix)
+	addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, aType)
 		if (self.active[cooldownName] and not self.lockdownTime) then
 			return
 		end
@@ -297,7 +296,6 @@ do
 			
 			local duration = seconds - (GetTime() - startTime)
 			frame.start = startTime
-			frame.elapseFix = elapseFix
 			frame.duration = duration
 			frame.max = seconds
 			
@@ -458,7 +456,7 @@ do
 			
 			startTime, duration, enabled = GetSpellCooldown(spellID)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
-				self:newCooldown(spellID, startTime, duration, GetSpellTexture(spellID), "SPELL", true)
+				self:newCooldown(spellID, startTime, duration, GetSpellTexture(spellID), "SPELL")
 			end
 		end
 		
@@ -466,7 +464,7 @@ do
 			startTime, duration, enabled = GetItemCooldown(item)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 				texture = select(10, GetItemInfo(item))
-				self:newCooldown(item, startTime, duration, texture, "ITEM", true)
+				self:newCooldown(item, startTime, duration, texture, "ITEM")
 			elseif (enabled == 0 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 				self.queuedItem = self.updateItem
 			end
@@ -476,7 +474,7 @@ do
 			startTime, duration, enabled = GetInventoryItemCooldown("player", id)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 				texture = GetInventoryItemTexture("player", id)
-				self:newCooldown(id, startTime, duration, texture, "INVENTORY", true)
+				self:newCooldown(id, startTime, duration, texture, "INVENTORY")
 			end
 		end
 	end
@@ -490,7 +488,7 @@ do
 		self:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
 		
 		if (LibStub) then
-			LBF = LibStub("LibButtonFacade",true)
+			LBF = LibStub("LibButtonFacade", true)
 			if (LBF) then
 				local skinChanged = function(self, skinName, gloss, backdrop, group, _, colors)
 					gxCooldownsDB.style[1] = skinName
