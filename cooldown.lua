@@ -222,17 +222,6 @@ local repositionFrames = function(self)
 	end
 end
 
-local lockdown = function(self, elapsed)
-	local duration = self.duration - elapsed
-	if (duration <= 0) then
-		self.parent:dropCooldown(self.name)
-		
-		return
-	end
-	
-	self.duration = duration
-end
-
 do
 	local onUpdateFunc = function(self, elapsed)
 		if (elapsed > 3) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
