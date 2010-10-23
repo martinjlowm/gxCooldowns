@@ -2,4 +2,5 @@
 	<Script file="libs\LibStub\LibStub.lua"/>
 	<Script file="libs\tekShiner\tekShiner.lua"/>
 	<Include file="libs\tekKonfig\tekKonfig.xml"/>
+	<Include file="libs\LibInternalCooldowns-1.0\lib.xml"/>
 </Ui>

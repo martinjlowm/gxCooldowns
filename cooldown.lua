@@ -472,6 +472,20 @@ do
 				buttonGroup = LBF:Group("gxCooldowns")
 				buttonGroup:Skin(unpack(gxCooldownsDB.style))
 			end
+			
+			local LIC = LibStub("LibInternalCooldowns-1.0", true)
+			if (LIC) then
+				local talentProc = function(self, _, spellID, startTime, duration)
+					self:newCooldown(spellID, startTime, duration, GetSpellTexture(spellID))
+				end
+				LIC:RegisterCallback("InternalCooldowns_TalentProc", talentProc, self)
+				
+				local itemProc = function(self, _, itemID, _, startTime, duration)
+					local texture = select(10, GetItemInfo(itemID))
+					self:newCooldown(itemID, startTime, duration, texture)
+				end
+				LIC:RegisterCallback("InternalCooldowns_Proc", itemProc, self)
+			end
 		end
 		
 		self.playerGUID = UnitGUID("player")
@@ -649,30 +663,33 @@ anchor.SPELL_UPDATE_USABLE = function(self)
 	for name, frame in next, self.active do
 		local startTime, duration
 		if (frame.type == "SPELL") then
-			start, duration = GetSpellCooldown(name)
+			startTime, duration = GetSpellCooldown(name)
 		elseif (frame.type == "ITEM") then
-			start, duration = GetItemCooldown(name)
+			startTime, duration = GetItemCooldown(name)
 		elseif (frame.type == "INVENTORY") then
-			start, duration = GetInventoryItemCooldown("player", name)
+			startTime, duration = GetInventoryItemCooldown("player", name)
 		elseif (frame.type == "PET") then
-			start, duration = GetPetActionCooldown(name)
+			startTime, duration = GetPetActionCooldown(name)
+			print(startTime, duration)
 		end
 		
-		if (not start and not duration) then -- Calling Get'Something'Cooldown right after talent swap returns a nil value
-			self:dropCooldown(name)
-			return
-		end
-		
-		if (duration <= 1 and frame.type == "SPELL") then -- For abilities like Readiness, dur will be lowered to 1 or 0
-			self:dropCooldown(name)
-			return
-		end
-		
-		if (frame.start > start or frame.duration > duration) then
-			frame.start = start
-			frame.duration = duration
+		if (frame.type) then
+			if (not startTime and not duration) then -- Calling Get'Something'Cooldown right after talent swap returns a nil value
+				self:dropCooldown(name)
+				return
+			end
 			
-			frame.Cooldown:SetCooldown(start, duration - 1)
+			if (duration <= 1) then -- For abilities like Readiness, duration will be lowered to 1 or 0
+				self:dropCooldown(name)
+				return
+			end
+			
+			if (frame.start > startTime or frame.duration > duration) then
+				frame.start = startTime
+				frame.duration = duration
+				
+				frame.Cooldown:SetCooldown(startTime, duration - 1)
+			end
 		end
 	end
 end
