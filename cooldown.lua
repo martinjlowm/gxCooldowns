@@ -219,8 +219,26 @@ local repositionFrames = function(self)
 end
 
 do
-	local cooldownHide = function(self)
-		self.__owner.parent:dropCooldown(self.__owner.name)
+	local onUpdateFunc = function(self, elapsed)
+		if (elapsed > 2) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
+			elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
+		end
+		
+		local duration = self.duration - elapsed
+		if (duration <= 0) then
+			self.parent:dropCooldown(self.name)
+			
+			return
+		end
+		
+		if (self.Model.time) then
+			if (self.max - duration > self.Model.time) then
+				self.Model:Hide()
+				self.Model.time = nil
+			end
+		end
+		
+		self.duration = duration
 	end
 	
 	local frameNum = 1
@@ -245,9 +263,9 @@ do
 		model:SetAllPoints(frame)
 		model:Hide()
 		
+		frame:SetScript("OnUpdate", onUpdateFunc)
+		
 		frame.Cooldown = _G[name.."Cooldown"]
-		frame.Cooldown.__owner = frame
-		frame.Cooldown:HookScript("OnHide", cooldownHide)
 		frame.Icon = _G[name.."Icon"]
 		frame.Model = model
 		
@@ -272,12 +290,13 @@ do
 			frame = loadFrame(self)
 			
 			frame.start = startTime
-			frame.duration = duration
+			frame.duration = duration - (GetTime() - startTime)
+			frame.max = duration
 			frame.name = cooldownName
 			frame.type = aType
 			
 			frame.Icon:SetTexture(tex)
-			frame.Cooldown:SetCooldown(startTime, duration - 1)
+			frame.Cooldown:SetCooldown(startTime, duration - 1) -- We subtract with 1 so we can enjoy OmniCC's effects
 			frame:Show()
 		end
 		
@@ -312,15 +331,16 @@ do
 	anchor.dropCooldown = function(self, cooldownName)
 		local frame = self.active[cooldownName]
 		if (frame) then
-			frame:Hide()
-			tinsert(self.pool, frame)
 			self.active[cooldownName] = nil
+			tinsert(self.pool, frame)
 			
 			if (frame.Model:IsShown()) then
 				frame.Model:Hide()
 			end
 			
 			repositionFrames(self)
+			
+			frame:Hide()
 		end
 	end
 end
@@ -670,7 +690,6 @@ anchor.SPELL_UPDATE_USABLE = function(self)
 			startTime, duration = GetInventoryItemCooldown("player", name)
 		elseif (frame.type == "PET") then
 			startTime, duration = GetPetActionCooldown(name)
-			print(startTime, duration)
 		end
 		
 		if (frame.type) then
@@ -686,7 +705,8 @@ anchor.SPELL_UPDATE_USABLE = function(self)
 			
 			if (frame.start > startTime or frame.duration > duration) then
 				frame.start = startTime
-				frame.duration = duration
+				frame.duration = duration - (GetTime() - startTime)
+				frame.max = duration
 				
 				frame.Cooldown:SetCooldown(startTime, duration - 1)
 			end
@@ -695,8 +715,11 @@ anchor.SPELL_UPDATE_USABLE = function(self)
 end
 
 local lockdownTime = {
-	["Pummel"] = 4,
-	["Shield Bash"] = 6,
+	[GetSpellInfo(34490)] = 3,	-- Silencing Shot
+	[GetSpellInfo(80964)] = 5,	-- Skull Bash
+	[GetSpellInfo(47528)] = 4,	-- Mind Freeze
+	[GetSpellInfo(6552)] = 4,	-- Pummel
+	[GetSpellInfo(72)] = 6,		-- Shield Bash
 }
 anchor.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, destGUID, _, _, ...)
 	local spellID, spellName, _, iSpellID, _, spellSchoolID = ...
