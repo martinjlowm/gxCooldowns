@@ -273,12 +273,11 @@ do
 			
 			frame.start = startTime
 			frame.duration = duration
-			
 			frame.name = cooldownName
 			frame.type = aType
 			
 			frame.Icon:SetTexture(tex)
-			frame.Cooldown:SetCooldown(startTime, duration)
+			frame.Cooldown:SetCooldown(startTime, duration - 1)
 			frame:Show()
 		end
 		
@@ -322,10 +321,7 @@ do
 			end
 			
 			repositionFrames(self)
-			return true
 		end
-		
-		return
 	end
 end
 
@@ -676,7 +672,7 @@ anchor.SPELL_UPDATE_USABLE = function(self)
 			frame.start = start
 			frame.duration = duration
 			
-			frame.Cooldown:SetCooldown(start, duration)
+			frame.Cooldown:SetCooldown(start, duration - 1)
 		end
 	end
 end
