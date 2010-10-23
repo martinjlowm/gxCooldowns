@@ -1,4 +1,4 @@
-local aName, aTable = ...
+local aName, gxCooldowns = ...
 
 local LBF, buttonGroup
 local Shiner = LibStub("tekShiner")
@@ -136,19 +136,21 @@ local specialOccasions = {
 	[12043] = true	-- Presence of Mind
 }
 
-local addon = CreateFrame("Frame", aName .. "Anchor", UIParent)
-addon:SetClampedToScreen(true)
-addon:RegisterEvent("BAG_UPDATE_COOLDOWN")
-addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-addon:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-addon:RegisterEvent("PLAYER_LOGIN")
-addon:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-addon:RegisterEvent("SPELL_UPDATE_USABLE")
-addon:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-addon.active = {}
-addon.pool = {}
+local anchor = CreateFrame("Frame", aName .. "Anchor", UIParent)
+anchor:SetClampedToScreen(true)
+anchor:SetBackdrop({bgFile = [=[Interface\ChatFrame\ChatFrameBackground]=]})
+anchor:SetBackdropColor(0, 0, 0, 0)
+anchor:RegisterEvent("BAG_UPDATE_COOLDOWN")
+anchor:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+anchor:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+anchor:RegisterEvent("PLAYER_LOGIN")
+anchor:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+anchor:RegisterEvent("SPELL_UPDATE_USABLE")
+anchor:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+anchor.active = {}
+anchor.pool = {}
 
-aTable.growthValues = {
+gxCooldowns.growthValues = {
 	["Down"] = {
 		point = "TOP",
 		horizontal = false
@@ -175,12 +177,6 @@ aTable.growthValues = {
 	}
 }
 
-local tex = addon:CreateTexture(aName .. "AnchorTexture", "OVERLAY")
-tex:SetAllPoints(addon)
-tex:SetTexture(.6, .6, .6, .6)
-tex:Hide()
-addon.anchor = tex
-
 local repositionFrames = function(self)
 	local gap = gxCooldownsDB.gap
 	
@@ -188,7 +184,7 @@ local repositionFrames = function(self)
 	local numActive, prev = 0
 	for _, frame in next, self.active do
 		frame:ClearAllPoints()
-		if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
+		if (gxCooldowns.growthValues[gxCooldownsDB.growth].horizontal) then
 			if (prev) then
 				rel, anchor, x = prev, "RIGHT", gap
 			else
@@ -215,7 +211,7 @@ local repositionFrames = function(self)
 		length = 36
 	end
 	
-	if (aTable.growthValues[gxCooldownsDB.growth].horizontal) then
+	if (gxCooldowns.growthValues[gxCooldownsDB.growth].horizontal) then
 		self:SetWidth(length)
 	else
 		self:SetHeight(length)
@@ -223,26 +219,8 @@ local repositionFrames = function(self)
 end
 
 do
-	local onUpdateFunc = function(self, elapsed)
-		if (elapsed > 3) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
-			elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
-		end
-		
-		local duration = self.duration - elapsed
-		if (duration <= 0) then
-			self.parent:dropCooldown(self.name)
-			
-			return
-		end
-		
-		if (self.Model.time) then
-			if (self.max - duration > self.Model.time) then
-				self.Model:Hide()
-				self.Model.time = nil
-			end
-		end
-		
-		self.duration = duration
+	local cooldownHide = function(self)
+		self.__owner.parent:dropCooldown(self.__owner.name)
 	end
 	
 	local frameNum = 1
@@ -267,9 +245,9 @@ do
 		model:SetAllPoints(frame)
 		model:Hide()
 		
-		frame:SetScript("OnUpdate", onUpdateFunc)
-		
 		frame.Cooldown = _G[name.."Cooldown"]
+		frame.Cooldown.__owner = frame
+		frame.Cooldown:HookScript("OnHide", cooldownHide)
 		frame.Icon = _G[name.."Icon"]
 		frame.Model = model
 		
@@ -282,28 +260,25 @@ do
 		return frame
 	end
 	
-	addon.newCooldown = function(self, cooldownName, startTime, seconds, tex, aType)
+	anchor.newCooldown = function(self, cooldownName, startTime, duration, tex, aType)
 		if (self.active[cooldownName] and not self.lockdownTime) then
 			return
 		end
 		
 		local frame
-		
 		if (self.lockdownTime and self.active[cooldownName]) then
 			frame = self.active[cooldownName]
 		else
 			frame = loadFrame(self)
 			
-			local duration = seconds - (GetTime() - startTime)
 			frame.start = startTime
 			frame.duration = duration
-			frame.max = seconds
 			
 			frame.name = cooldownName
 			frame.type = aType
 			
 			frame.Icon:SetTexture(tex)
-			frame.Cooldown:SetCooldown(startTime, seconds)
+			frame.Cooldown:SetCooldown(startTime, duration)
 			frame:Show()
 		end
 		
@@ -335,7 +310,7 @@ do
 		repositionFrames(self)
 	end
 	
-	addon.dropCooldown = function(self, cooldownName)
+	anchor.dropCooldown = function(self, cooldownName)
 		local frame = self.active[cooldownName]
 		if (frame) then
 			frame:Hide()
@@ -354,31 +329,31 @@ do
 	end
 end
 
-aTable.updateFrames = function(growth)
+gxCooldowns.updateFrames = function(growth)
 	gxCooldownsDB.growth = growth
-	addon:SetHeight(36)
-	addon:SetWidth(36) -- Reset the dimensions before we engage repositionFrames
-	repositionFrames(addon)
+	anchor:SetHeight(36)
+	anchor:SetWidth(36) -- Reset the dimensions before we engage repositionFrames
+	repositionFrames(anchor)
 	
-	addon:ClearAllPoints()
-	addon:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
+	anchor:ClearAllPoints()
+	anchor:SetPoint(gxCooldowns.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
 end
 
-aTable.setScale = function(scale)
+gxCooldowns.setScale = function(scale)
 	gxCooldownsDB.scale = scale
-	addon:SetScale(scale)
+	anchor:SetScale(scale)
 end
 
-aTable.setGap = function(gap)
+gxCooldowns.setGap = function(gap)
 	gxCooldownsDB.gap = gap
-	repositionFrames(addon)
+	repositionFrames(anchor)
 end
 
-aTable.setPosition = function(x, y)
+gxCooldowns.setPosition = function(x, y)
 	gxCooldownsDB.xOffset, gxCooldownsDB.yOffset = x, y
 	
-	addon:ClearAllPoints()
-	addon:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
+	anchor:ClearAllPoints()
+	anchor:SetPoint(gxCooldowns.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
 end
 
 do
@@ -386,8 +361,8 @@ do
 	local coords = {[1] = {}, [2] = {}, [3] = {}}
 	local startMoving = function(self, button)
 		if (button == "RightButton") then
-			aTable.locked = true
-			aTable.toggleLock()
+			gxCooldowns.locked = true
+			gxCooldowns.toggleLock()
 			return
 		end
 		
@@ -419,26 +394,26 @@ do
 		gxCooldownsDB.yOffset = y
 		
 		self:ClearAllPoints()
-		self:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", x, y)
+		self:SetPoint(gxCooldowns.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", x, y)
 	end
 	
-	aTable.toggleLock = function(callbackLock, callbackXY)
-		if (aTable.locked) then
-			addon.anchor:Hide()
-			addon:EnableMouse(nil)
-			addon:SetMovable(nil)
+	gxCooldowns.toggleLock = function(callbackLock, callbackXY)
+		if (gxCooldowns.locked) then
+			anchor:SetBackdropColor(0, 0, 0, 0)
+			anchor:EnableMouse(nil)
+			anchor:SetMovable(nil)
 			
-			addon:SetScript("OnMouseDown", nil)
-			addon:SetScript("OnMouseUp", nil)
+			anchor:SetScript("OnMouseDown", nil)
+			anchor:SetScript("OnMouseUp", nil)
 		else
-			addon.anchor:Show()
-			addon:EnableMouse(true)
-			addon:SetMovable(true)
+			anchor:SetBackdropColor(.6, .6, .6, .6)
+			anchor:EnableMouse(true)
+			anchor:SetMovable(true)
 			
-			addon:SetScript("OnMouseDown", startMoving)
-			addon:HookScript("OnMouseDown", callbackLock)
-			addon:SetScript("OnMouseUp", stopMoving)
-			addon:HookScript("OnMouseUp", callbackXY)
+			anchor:SetScript("OnMouseDown", startMoving)
+			anchor:HookScript("OnMouseDown", callbackLock)
+			anchor:SetScript("OnMouseUp", stopMoving)
+			anchor:HookScript("OnMouseUp", callbackXY)
 		end
 	end
 end
@@ -479,13 +454,13 @@ do
 		end
 	end
 	
-	addon.PLAYER_LOGIN = function(self)
-		aTable.setupConfiguration()
+	anchor.PLAYER_LOGIN = function(self)
+		gxCooldowns.setupConfiguration()
 		
 		self:SetHeight(36)
 		self:SetWidth(36)
 		self:SetScale(gxCooldownsDB.scale)
-		self:SetPoint(aTable.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
+		self:SetPoint(gxCooldowns.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
 		
 		if (LibStub) then
 			LBF = LibStub("LibButtonFacade", true)
@@ -516,7 +491,7 @@ do
 	end
 end
 
-addon.SPELL_UPDATE_COOLDOWN = function(self)
+anchor.SPELL_UPDATE_COOLDOWN = function(self)
 	local startTime, duration, enabled, texture
 	if (self.updateNext) then
 		startTime, duration, enabled = GetSpellCooldown(self.updateNext)
@@ -584,7 +559,7 @@ addon.SPELL_UPDATE_COOLDOWN = function(self)
 	self.updateAbility = nil
 end
 
-addon.BAG_UPDATE_COOLDOWN = function(self)
+anchor.BAG_UPDATE_COOLDOWN = function(self)
 	local startTime, duration, enabled, texture
 	
 	if (self.queuedItem) then	-- For items with a cooldown that doesn't start before leaving combat!
@@ -622,7 +597,7 @@ end
 
 local scanner = CreateFrame("GameTooltip", "gxCooldownsScanner", UIParent, "GameTooltipTemplate")
 scanner:SetOwner(UIParent, "ANCHOR_NONE")
-addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
+anchor.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 	if (not beingEquipped) then
 		for spellID, id in next, spellIDToSlotID do
 			if (id and id == slotID) then
@@ -648,7 +623,7 @@ addon.PLAYER_EQUIPMENT_CHANGED = function(self, slotID, beingEquipped)
 	end
 end
 
-addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName, _, _, spellID)
+anchor.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName, _, _, spellID)
 	if ((unit ~= "player" and unit ~= "pet") or gxCooldownsDB.blacklist[spellID]) then
 		return
 	end
@@ -674,36 +649,34 @@ addon.UNIT_SPELLCAST_SUCCEEDED = function(self, unit, spellName, _, _, spellID)
 	self.updateAbility = unit..","..spellID
 end
 
-addon.SPELL_UPDATE_USABLE = function(self)
+anchor.SPELL_UPDATE_USABLE = function(self)
 	for name, frame in next, self.active do
-		local startTime, dur
+		local startTime, duration
 		if (frame.type == "SPELL") then
-			start, dur = GetSpellCooldown(name)
+			start, duration = GetSpellCooldown(name)
 		elseif (frame.type == "ITEM") then
-			start, dur = GetItemCooldown(name)
+			start, duration = GetItemCooldown(name)
 		elseif (frame.type == "INVENTORY") then
-			start, dur = GetInventoryItemCooldown("player", name)
+			start, duration = GetInventoryItemCooldown("player", name)
 		elseif (frame.type == "PET") then
-			start, dur = GetPetActionCooldown(name)
+			start, duration = GetPetActionCooldown(name)
 		end
 		
-		if (not start and not dur) then -- Calling Get'Something'Cooldown right after talent swap returns a nil value
+		if (not start and not duration) then -- Calling Get'Something'Cooldown right after talent swap returns a nil value
 			self:dropCooldown(name)
 			return
 		end
 		
-		if (dur <= 1 and frame.type == "SPELL") then -- For abilities like Readiness, dur will be lowered to 1 or 0
+		if (duration <= 1 and frame.type == "SPELL") then -- For abilities like Readiness, dur will be lowered to 1 or 0
 			self:dropCooldown(name)
 			return
 		end
 		
-		if (frame.start > start or frame.max > dur) then
-			local duration = start - GetTime() + dur
+		if (frame.start > start or frame.duration > duration) then
 			frame.start = start
 			frame.duration = duration
-			frame.max = dur
 			
-			frame.Cooldown:SetCooldown(start, dur)
+			frame.Cooldown:SetCooldown(start, duration)
 		end
 	end
 end
@@ -712,7 +685,7 @@ local lockdownTime = {
 	["Pummel"] = 4,
 	["Shield Bash"] = 6,
 }
-addon.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, destGUID, _, _, ...)
+anchor.COMBAT_LOG_EVENT_UNFILTERED = function(self, _, event, sourceGUID, _, _, destGUID, _, _, ...)
 	local spellID, spellName, _, iSpellID, _, spellSchoolID = ...
 	if (event == "SPELL_AURA_REMOVED" and sourceGUID == self.playerGUID and specialOccasions[spellID] and not gxCooldownsDB.blacklist[spellID]) then
 		self.updateSpecial = spellID
@@ -727,8 +700,8 @@ do	-- Stealth and Prowl apparently trigger SPELL_UPDATE_COOLDOWN before the aura
 	local class = select(2, UnitClass("player"))
 	if (class == "ROGUE" or class == "DRUID") then
 		local stealth = class == "ROGUE" and 1784 or 5215
-		addon:RegisterEvent("UPDATE_STEALTH")
-		addon.UPDATE_STEALTH = function(self)
+		anchor:RegisterEvent("UPDATE_STEALTH")
+		anchor.UPDATE_STEALTH = function(self)
 			local startTime, duration, enabled = GetSpellCooldown(stealth)
 			if (enabled == 1 and duration > gxCooldownsDB.minDuration and (duration < gxCooldownsDB.maxDuration or gxCooldownsDB.maxDuration == 3600)) then
 				local texture = GetSpellTexture(stealth)
@@ -738,7 +711,7 @@ do	-- Stealth and Prowl apparently trigger SPELL_UPDATE_COOLDOWN before the aura
 	end
 end
 
-addon:SetScript("OnEvent", function(self, event, ...)
+anchor:SetScript("OnEvent", function(self, event, ...)
 	if (self[event]) then
 		self[event](self, ...)
 	end

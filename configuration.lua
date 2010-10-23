@@ -1,4 +1,4 @@
-local aName, aTable = ...
+local aName, gxCooldowns = ...
 
 local floor = math.floor
 local format = string.format
@@ -54,12 +54,12 @@ local addMainOptions = function(self)
 	local OnClick = function(self)
 		UIDropDownMenu_SetSelectedValue(dropdown, self.value)
 		dText:SetText(self.value)
-		aTable.updateFrames(self.value)
+		gxCooldowns.updateFrames(self.value)
 	end
 	UIDropDownMenu_Initialize(dropdown, function()
 		local selected, info = UIDropDownMenu_GetSelectedValue(dropdown) or gxCooldownsDB.growth, UIDropDownMenu_CreateInfo()
 		
-		for name in next, aTable.growthValues do
+		for name in next, gxCooldowns.growthValues do
 			info.text = name
 			info.value = name
 			info.func = OnClick
@@ -77,7 +77,7 @@ local addMainOptions = function(self)
 	scale:SetScript("OnValueChanged", function(self)
 		local scale = self:GetValue()
 		scaleText:SetText(format("Scale: %.2f", scale))
-		aTable.setScale(scale)
+		gxCooldowns.setScale(scale)
 	end)
 	
 	local gap, gapText = Slider.new(mainGroup, "Gap: " .. gxCooldownsDB.gap, -10, 25)
@@ -88,7 +88,7 @@ local addMainOptions = function(self)
 	gap:SetScript("OnValueChanged", function(self)
 		local gap = self:GetValue()
 		gapText:SetText("Gap: " .. gap)
-		aTable.setGap(gap)
+		gxCooldowns.setGap(gap)
 	end)
 	
 	local minDur, minDurText = Slider.new(mainGroup, "Minimum duration: " .. gxCooldownsDB.minDuration, 1.5, 10)
@@ -165,7 +165,7 @@ local addMainOptions = function(self)
 			return
 		end
 		
-		aTable.setPosition(x, y)
+		gxCooldowns.setPosition(x, y)
 	end)
 	
 	local lock = Button.new(mainGroup, "TOPLEFT", x, "BOTTOMLEFT", -5, -5)
@@ -175,23 +175,23 @@ local addMainOptions = function(self)
 	lock:SetText("Unlock")
 	
 	local callbackLock = function()
-		if (aTable.locked) then
+		if (gxCooldowns.locked) then
 			lock:SetText("Unlock")
 		end
 	end
 	
 	lock:SetScript("OnClick", function(self)
-		if (aTable.locked) then
+		if (gxCooldowns.locked) then
 			self:SetText("Lock")
-			aTable.locked = false
+			gxCooldowns.locked = false
 		else
 			self:SetText("Unlock")
-			aTable.locked = true
+			gxCooldowns.locked = true
 		end
 		
-		aTable.toggleLock(callbackLock, callbackXY)
+		gxCooldowns.toggleLock(callbackLock, callbackXY)
 	end)
-	aTable.locked = true
+	gxCooldowns.locked = true
 	
 	self:SetScript("OnShow", nil)
 end
@@ -670,4 +670,4 @@ local setup = function(self)
 	SLASH_GXCOOLDOWNS1 = "/gxcooldowns"
 	SLASH_GXCOOLDOWNS2 = "/gxcd"
 end
-aTable.setupConfiguration = setup
+gxCooldowns.setupConfiguration = setup
