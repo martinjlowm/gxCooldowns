@@ -10,6 +10,7 @@ local split = string.split
 local tinsert = table.insert
 local tremove = table.remove
 local unpack = unpack
+local GetTime = GetTime
 
 local GetInventoryItemCooldown = GetInventoryItemCooldown
 local GetInventoryItemTexture = GetInventoryItemTexture
@@ -219,12 +220,9 @@ local repositionFrames = function(self)
 end
 
 do
-	local onUpdateFunc = function(self, elapsed)
-		if (elapsed > 2) then -- OnUpdate runs [fps] times in a second, if elapsed is 3 the fps would be 0.33..., we assume that will never happen.
-			elapsed = elapsed - floor(elapsed) -- elapsed is 5+ right when you log in, we try to reset it here because it would bug out the duration.
-		end
+	local updateTime = function(self)
+		local duration = self.duration - (GetTime() - self.start)
 		
-		local duration = self.duration - elapsed
 		if (duration <= 0) then
 			self.parent:dropCooldown(self.name)
 			
@@ -238,7 +236,15 @@ do
 			end
 		end
 		
-		self.duration = duration
+		self.nextUpdate = 1
+	end
+	
+	local onUpdateFunc = function(self, elapsed)
+		if (self.nextUpdate > 0) then
+			self.nextUpdate = self.nextUpdate - elapsed
+		else
+			updateTime(self)
+		end
 	end
 	
 	local frameNum = 1
@@ -290,13 +296,15 @@ do
 			frame = loadFrame(self)
 			
 			frame.start = startTime
-			frame.duration = duration - (GetTime() - startTime)
+			frame.duration = duration
 			frame.max = duration
+			frame.nextUpdate = 1
+			
 			frame.name = cooldownName
 			frame.type = aType
 			
 			frame.Icon:SetTexture(tex)
-			frame.Cooldown:SetCooldown(startTime, duration - 1) -- We subtract with 1 so we can enjoy OmniCC's effects
+			frame.Cooldown:SetCooldown(startTime, duration)
 			frame:Show()
 		end
 		
@@ -708,7 +716,7 @@ anchor.SPELL_UPDATE_USABLE = function(self)
 				frame.duration = duration - (GetTime() - startTime)
 				frame.max = duration
 				
-				frame.Cooldown:SetCooldown(startTime, duration - 1)
+				frame.Cooldown:SetCooldown(startTime, duration)
 			end
 		end
 	end
