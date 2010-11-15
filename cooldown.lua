@@ -220,31 +220,8 @@ local repositionFrames = function(self)
 end
 
 do
-	local updateTime = function(self)
-		local duration = self.duration - (GetTime() - self.start)
-		
-		if (duration <= 0) then
-			self.parent:dropCooldown(self.name)
-			
-			return
-		end
-		
-		if (self.Model.time) then
-			if (self.max - duration > self.Model.time) then
-				self.Model:Hide()
-				self.Model.time = nil
-			end
-		end
-		
-		self.nextUpdate = 1
-	end
-	
-	local onUpdateFunc = function(self, elapsed)
-		if (self.nextUpdate > 0) then
-			self.nextUpdate = self.nextUpdate - elapsed
-		else
-			updateTime(self)
-		end
+	local cooldownHide = function(self)
+		self.__owner.parent:dropCooldown(self.__owner.name)
 	end
 	
 	local frameNum = 1
@@ -269,9 +246,9 @@ do
 		model:SetAllPoints(frame)
 		model:Hide()
 		
-		frame:SetScript("OnUpdate", onUpdateFunc)
-		
 		frame.Cooldown = _G[name.."Cooldown"]
+		frame.Cooldown.__owner = frame
+		frame.Cooldown:HookScript("OnHide", cooldownHide)
 		frame.Icon = _G[name.."Icon"]
 		frame.Model = model
 		
@@ -285,28 +262,24 @@ do
 	end
 	
 	anchor.newCooldown = function(self, cooldownName, startTime, duration, tex, aType)
-		if (self.active[cooldownName] and not self.lockdownTime) then
-			return
-		end
-		
 		local frame
-		if (self.lockdownTime and self.active[cooldownName]) then
+		if (self.active[cooldownName]) then
 			frame = self.active[cooldownName]
 		else
 			frame = loadFrame(self)
-			
-			frame.start = startTime
-			frame.duration = duration
-			frame.max = duration
-			frame.nextUpdate = 1
-			
-			frame.name = cooldownName
-			frame.type = aType
-			
-			frame.Icon:SetTexture(tex)
-			frame.Cooldown:SetCooldown(startTime, duration)
-			frame:Show()
 		end
+		
+		frame.start = startTime
+		frame.duration = duration
+		frame.max = duration
+		frame.nextUpdate = .25
+		
+		frame.name = cooldownName
+		frame.type = aType
+		
+		frame.Icon:SetTexture(tex)
+		frame.Cooldown:SetCooldown(startTime, duration)
+		frame:Show()
 		
 		if (self.lockdownTime) then
 			frame.Model:Show()
@@ -486,35 +459,31 @@ do
 		self:SetScale(gxCooldownsDB.scale)
 		self:SetPoint(gxCooldowns.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
 		
-		if (LibStub) then
-			LBF = LibStub("LibButtonFacade", true)
-			if (LBF) then
-				local skinChanged = function(self, skinName, gloss, backdrop, group, _, colors)
-					gxCooldownsDB.style[1] = skinName
-					gxCooldownsDB.style[2] = gloss
-					gxCooldownsDB.style[3] = backdrop
-					gxCooldownsDB.style[4] = colors
-				end
-				
-				LBF:RegisterSkinCallback("gxCooldowns", skinChanged, self)
-				buttonGroup = LBF:Group("gxCooldowns")
-				buttonGroup:Skin(unpack(gxCooldownsDB.style))
+		LBF = LibStub("LibButtonFacade", true)
+		if (LBF) then
+			local skinChanged = function(self, skinName, gloss, backdrop, group, _, colors)
+				gxCooldownsDB.style[1] = skinName
+				gxCooldownsDB.style[2] = gloss
+				gxCooldownsDB.style[3] = backdrop
+				gxCooldownsDB.style[4] = colors
 			end
 			
-			local LIC = LibStub("LibInternalCooldowns-1.0", true)
-			if (LIC) then
-				local talentProc = function(self, _, spellID, startTime, duration)
-					self:newCooldown(spellID, startTime, duration, GetSpellTexture(spellID))
-				end
-				LIC:RegisterCallback("InternalCooldowns_TalentProc", talentProc, self)
-				
-				local itemProc = function(self, _, itemID, _, startTime, duration)
-					local texture = select(10, GetItemInfo(itemID))
-					self:newCooldown(itemID, startTime, duration, texture)
-				end
-				LIC:RegisterCallback("InternalCooldowns_Proc", itemProc, self)
-			end
+			LBF:RegisterSkinCallback("gxCooldowns", skinChanged, self)
+			buttonGroup = LBF:Group("gxCooldowns")
+			buttonGroup:Skin(unpack(gxCooldownsDB.style))
 		end
+		
+		local LIC = LibStub("LibInternalCooldowns-1.0", true)
+		local talentProc = function(self, _, spellID, startTime, duration)
+			self:newCooldown(spellID, startTime, duration, GetSpellTexture(spellID))
+		end
+		LIC:RegisterCallback("InternalCooldowns_TalentProc", talentProc, self)
+		
+		local itemProc = function(self, _, itemID, _, startTime, duration)
+			local texture = select(10, GetItemInfo(itemID))
+			self:newCooldown(itemID, startTime, duration, texture)
+		end
+		LIC:RegisterCallback("InternalCooldowns_Proc", itemProc, self)
 		
 		self.playerGUID = UnitGUID("player")
 		
