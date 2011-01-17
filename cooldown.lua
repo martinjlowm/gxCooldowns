@@ -127,6 +127,7 @@ local enchantTextToSpellID = {
 	["Use: Reduces your falling speed for 30 sec. (1 Min Cooldown)"] = 55001, -- Springy Arachnoweave
 }
 local specialOccasions = {
+	[57934] = true,	-- Tricks of the Trade
 	[14751] = true,	-- Chakra
 	[14177] = true,	-- Cold Blood
 	[11129] = true,	-- Combustion
@@ -148,6 +149,8 @@ anchor:RegisterEvent("PLAYER_LOGIN")
 anchor:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 anchor:RegisterEvent("SPELL_UPDATE_USABLE")
 anchor:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+anchor:RegisterEvent("PLAYER_REGEN_ENABLED")
+anchor:RegisterEvent("PLAYER_REGEN_DISABLED")
 anchor.active = {}
 anchor.pool = {}
 
@@ -334,6 +337,10 @@ gxCooldowns.updateFrames = function(growth)
 	
 	anchor:ClearAllPoints()
 	anchor:SetPoint(gxCooldowns.growthValues[gxCooldownsDB.growth].point, UIParent, "CENTER", gxCooldownsDB.xOffset, gxCooldownsDB.yOffset)
+end
+
+gxCooldowns.setOutCombatAlpha = function(alpha)
+	gxCooldownsDB.OOCAlpha = alpha
 end
 
 gxCooldowns.setScale = function(scale)
@@ -721,6 +728,18 @@ do	-- Stealth and Prowl apparently trigger SPELL_UPDATE_COOLDOWN before the aura
 				self:newCooldown(stealth, startTime, duration, texture, "SPELL")
 			end
 		end
+	end
+end
+
+anchor.PLAYER_REGEN_ENABLED = function()
+	if (gxCooldownsDB.EnableOOCAlpha) then
+		anchor:SetAlpha(gxCooldownsDB.OOCAlpha)
+	end
+end
+
+anchor.PLAYER_REGEN_DISABLED = function()
+	if (gxCooldownsDB.EnableOOCAlpha) then
+		anchor:SetAlpha(1)
 	end
 end
 

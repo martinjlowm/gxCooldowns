@@ -34,6 +34,8 @@ local defaults = {
 		true		-- Use backdrop
 	},
 	
+	EnableOOCAlpha = true,
+	OOCAlpha = .1,
 	scale = 1,
 	gap = 10,
 	growth = "Left and Right",
