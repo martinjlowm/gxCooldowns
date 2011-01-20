@@ -538,6 +538,7 @@ anchor.SPELL_UPDATE_COOLDOWN = function(self)
 	end
 	
 	local unit, abilityID = split(",", self.updateAbility)
+	abilityID = tonumber(abilityID)
 	if (FD == abilityID) then
 		self.updateNext = abilityID
 		return
